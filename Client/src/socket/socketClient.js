@@ -1,1 +1,3 @@
-// TODO: implement\n
+const socketClient = null;
+
+export default socketClient;

@@ -10,6 +10,8 @@
 >     don't hide it").
 > -   Chat remains linear; Bento layout is reserved for supporting
 >     information.
+> -   This is a chat app first — fast messaging is the priority. The
+>     browser window itself never scrolls; only specific inner panels do.
 
 ------------------------------------------------------------------------
 
@@ -55,9 +57,13 @@ Three-column layout:
 2.  Real-Time Chat
 3.  Active Members
 
+The chat column occupies roughly **70–75% of available width**; the
+Groups sidebar and Members panel share the remainder.
+
 The chat occupies the visual focus.
 
 Do **not** place analytics or upload widgets in the primary chat view.
+No dedicated "Upload PDF" or "Tracked PDFs" bento cards — see Section 15.
 
 ------------------------------------------------------------------------
 
@@ -197,6 +203,8 @@ Remove:
 
 Group identity is communicated with the blue accent.
 
+The Groups list scrolls internally if it grows long — see Section 15.
+
 ------------------------------------------------------------------------
 
 # 9. Chat
@@ -227,6 +235,8 @@ Status colors:
 -   Offline → Gray
 
 Use high contrast for names and roles.
+
+The Members list scrolls internally if it grows long — see Section 15.
 
 ------------------------------------------------------------------------
 
@@ -278,14 +288,98 @@ h-screen
 
 ``` text
 +-----------------------------------------------------------+
-| Header                                                    |
+| Header (fixed)                                            |
 +-----------------------------------------------------------+
-| Sidebar | Chat (Primary) | Members                        |
-|         |                |                                |
-|         | AI Grounded    |                                |
-|         | Source Card    |                                |
+| Groups   | Chat Header (fixed)          | Members          |
+| (scroll) | ------------------------------| (scroll)        |
+|          | Messages (scroll, flex-grow)  |                 |
+|          | AI Grounded Source Card       |                 |
+|          | ------------------------------|                 |
+|          | Message Composer (fixed)      |                 |
 +-----------------------------------------------------------+
 ```
 
 The design should prioritize trust, readability, and information
 hierarchy over decorative effects.
+
+------------------------------------------------------------------------
+
+# 15. Layout & Scroll Behavior
+
+This is a real-time chat app first — it must behave like Slack,
+Discord, or WhatsApp Web. Fast messaging is the priority, not a
+feature-showcase dashboard.
+
+## 15.1 Single Viewport, No Page Scroll
+
+The browser window must **never** scroll — there should be no
+page-level vertical scrollbar under any circumstance.
+
+```css
+html, body, #root {
+  height: 100vh;
+  overflow: hidden;
+}
+```
+
+Implement with Flexbox:
+
+```text
+Viewport (100vh)
+Header (fixed)
+────────────────────────────
+Main (flex row)
+├── Groups sidebar
+├── Chat column
+│     ├── Chat header (fixed)
+│     ├── Messages (flex-grow — this scrolls)
+│     └── Message composer (fixed at bottom, always visible)
+└── Members panel
+```
+
+The user should never need to scroll the browser page to reach the
+message input or any core action.
+
+## 15.2 Only These Panels Scroll Internally
+
+Each uses its own `overflow-y-auto` within a fixed-height flex
+container. Nothing outside this list scrolls:
+
+-   Groups sidebar list
+-   Chat message list (primary scroll area — header and composer
+    never move; new messages append here)
+-   Members panel list
+-   Tracked PDFs modal body (Section 15.4)
+
+## 15.3 No Upload/Tracked-PDF Bento Cards
+
+Do not use dedicated "Upload PDF" or "Tracked PDFs" cards in the main
+layout — they consume vertical space that should go to the chat area.
+
+PDF upload flow, via the message composer's existing attachment icon:
+
+```text
+Click attachment → choose PDF → upload → show progress →
+file reference appears in chat → backend indexes it → AI can use it
+```
+
+## 15.4 Tracked PDFs — Toolbar Icon + Modal
+
+Add a single icon (document/file icon) in the chat header, next to
+the group name. Clicking it opens a modal showing:
+
+-   Filename
+-   Uploaded by / date
+-   Status (`processing` / `ready` — matches the Document model's
+    `status` field)
+
+The modal body scrolls independently if the list is long. This
+replaces any inline "Tracked PDFs" panel entirely.
+
+## 15.5 Explicitly Out of Scope for This Pass
+
+-   Search (not a v1 feature)
+-   Settings icon (not a v1 feature)
+-   Any additional header icon beyond the single Tracked PDFs icon —
+    the Members panel is already its own column; no duplicate Members
+    icon in the header.
