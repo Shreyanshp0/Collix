@@ -1,6 +1,6 @@
 # UI-IMPLEMENTATION.md
 
-# Collaborative RAG Workspace --- Neo-Brutalist Design System
+# Collaborative RAG Workspace — Neo-Brutalist Design System
 
 > **Design Principles**
 >
@@ -51,7 +51,7 @@
 
 Three-column layout:
 
-1.  Workspace & Channels
+1.  Groups
 2.  Real-Time Chat
 3.  Active Members
 
@@ -176,7 +176,7 @@ text-slate-400
 
 Examples:
 
--   01 WORKSPACES & GROUPS
+-   01 GROUPS
 -   RAG GROUNDED
 -   10:14 AM
 
@@ -186,8 +186,7 @@ Examples:
 
 Sections:
 
--   Workspaces
--   Group Channels
+-   Groups
 -   Workspace Isolation
 
 Remove:
