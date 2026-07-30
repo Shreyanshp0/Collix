@@ -1,4 +1,4 @@
-import { Activity, Hash, Lock, Plus, X } from 'lucide-react';
+import { Activity, Hash, Lock, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
@@ -7,6 +7,7 @@ import DocumentList from '../components/documents/DocumentList.jsx';
 import AddMemberForm from '../components/groups/AddMemberForm.jsx';
 import GroupList from '../components/groups/GroupList.jsx';
 import MemberList from '../components/groups/MemberList.jsx';
+import Modal from '../components/shared/Modal.jsx';
 
 const sideGroups = [
   {
@@ -155,28 +156,16 @@ function GroupChatPage() {
       </div>
 
       {isDocumentsModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="dashboard-shell accent-blue flex h-full max-h-[560px] w-full max-w-2xl flex-col overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b-2 border-border px-4 py-3">
-              <div>
-                <p className="section-label text-groupBlue">Tracked PDFs</p>
-                <p className="mt-2 text-base font-black uppercase tracking-[0.12em] text-primaryText">
-                  Group Documents
-                </p>
-              </div>
-              <button
-                type="button"
-                className="flex h-9 w-9 items-center justify-center border-2 border-border bg-background text-primaryText"
-                onClick={() => setIsDocumentsModalOpen(false)}
-              >
-                <X className="h-4 w-4" strokeWidth={2.25} />
-              </button>
-            </div>
-            <div className="scroll-panel min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <DocumentList documents={documents} />
-            </div>
-          </div>
-        </div>
+        <Modal
+          isOpen={isDocumentsModalOpen}
+          onClose={() => setIsDocumentsModalOpen(false)}
+          size="lg"
+          sectionLabel="TRACKED PDFs"
+          title="Tracked PDFs"
+          subtitle="Group Documents"
+        >
+          <DocumentList documents={documents} />
+        </Modal>
       )}
     </div>
   );

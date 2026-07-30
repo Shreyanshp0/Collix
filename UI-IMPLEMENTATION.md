@@ -383,3 +383,271 @@ replaces any inline "Tracked PDFs" panel entirely.
 -   Any additional header icon beyond the single Tracked PDFs icon —
     the Members panel is already its own column; no duplicate Members
     icon in the header.
+
+## 16. Global Application Shell
+
+All authenticated pages (Chat, Groups, future Profile, Settings, etc.) must use a shared application shell.
+
+The AppShell is responsible for:
+
+Fixed viewport (100vh)
+Fixed top navigation
+Global content width
+Responsive spacing
+Scroll containment
+Theme consistency
+
+Structure:
+
+Viewport (100vh)
+
+┌───────────────────────────────────────────────┐
+│ Top Navigation (fixed)                        │
+├───────────────────────────────────────────────┤
+│                                               │
+│               Page Container                  │
+│                                               │
+└───────────────────────────────────────────────┘
+
+Every authenticated page must render inside this shell.
+
+Pages should never implement their own viewport logic.
+
+## 17. Global Page Container
+
+Every page should share the same content width.
+
+max-width: 1600px;
+width: 100%;
+margin-inline: auto;
+padding-inline: 24px;
+padding-block: 16px;
+
+This keeps Chat, Groups, and future pages visually aligned.
+
+Do not allow different pages to use different container widths.
+
+## 18. Global Spacing System
+
+Adopt an 8px spacing system.
+
+Space-1 = 4px
+
+Space-2 = 8px
+
+Space-3 = 12px
+
+Space-4 = 16px
+
+Space-5 = 24px
+
+Space-6 = 32px
+
+Space-7 = 40px
+
+Do not use arbitrary spacing values unless absolutely necessary.
+
+All page layouts should be built from these spacing tokens.
+
+## 19. Shared Layout Components
+
+Create reusable layout primitives.
+
+Examples:
+
+<AppShell>
+
+<PageContainer>
+
+<PageHeader>
+
+<PageSection>
+
+<Panel>
+
+<ScrollablePanel>
+
+<Sidebar>
+
+<ContentArea>
+
+<Modal>
+
+Pages should compose these primitives instead of recreating layouts.
+
+## 20. Shared Panel Rules
+
+Every panel should inherit the same base appearance.
+
+Default:
+
+2px border
+Surface background
+Hard shadow
+Consistent padding
+Consistent radius
+
+Variants:
+
+Standard Panel
+AI Panel
+Group Panel
+Modal Panel
+
+Never redefine these styles inside individual pages.
+
+## 21. Responsive Grid System
+
+Desktop
+
+Groups
+
+20%
+
+Chat
+
+60%
+
+Members
+
+20%
+
+Pages without sidebars
+
+Centered Container
+
+Maximum Width
+
+Tablet
+
+Collapse secondary panels into drawers.
+
+Mobile
+
+Single-column navigation.
+
+## 22. Global Typography Tokens
+
+Standardize typography.
+
+Page Title
+
+Large uppercase heading.
+
+Section Label
+
+Small uppercase blue label.
+
+Card Title
+
+Medium bold uppercase.
+
+Body
+
+Normal weight.
+
+Metadata
+
+Monospace secondary text.
+
+Every page should reuse these tokens.
+
+## 23. Global Scroll Rules
+
+The following elements may scroll:
+
+Groups list
+Chat messages
+Members list
+Modal bodies
+Long lists
+
+Everything else remains fixed.
+
+Never introduce browser-level scrolling.
+
+## 24. Message Composer Standards
+
+The composer behaves like Slack or Discord.
+
+Default height:
+
+Approximately 60–70px.
+
+Auto-expands:
+
+Multi-line text
+Attachments
+
+Maximum height:
+
+Approximately 180px.
+
+Only the textarea grows.
+
+Toolbar remains fixed.
+
+The composer participates in Flexbox layout.
+
+It must never overlay messages.
+
+As the composer grows:
+
+Messages area shrinks naturally.
+Latest messages remain visible.
+No message disappears beneath the composer.
+## 25. Chat Behaviour Standards
+
+Messages remain in chronological order.
+
+When a conversation opens:
+
+Automatically scroll to the newest message.
+Composer immediately visible.
+
+If the user is reading history:
+
+Preserve scroll position.
+Never force-scroll.
+
+If the user is already at the bottom:
+
+Keep the viewport pinned to the latest messages.
+## 26. Global Scrollbar Style
+
+No native operating-system scrollbars.
+
+Use custom scrollbars.
+
+Width
+
+4px
+
+Track
+
+#000000
+
+Thumb
+
+Group Blue
+
+Sharp edges
+
+Apply consistently to every internal scrolling container.
+
+## 27. Design Consistency Rules
+
+Before adding any new page or component, verify:
+
+Uses AppShell.
+Uses PageContainer.
+Uses spacing tokens.
+Uses typography tokens.
+Uses shared panel styles.
+Uses semantic colors.
+Respects viewport rules.
+Does not introduce browser scrolling.
+Uses shared scroll behavior.
+Matches existing Neo-Brutalist language.
+
+No page should invent its own layout system.
