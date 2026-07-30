@@ -11,16 +11,11 @@ function DocumentList({ documents }) {
           <p>No PDFs uploaded yet. Add a document from the composer attachment button.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {documents.map((document) => (
-            <div
-              key={document.id}
-              className="flex items-center justify-between gap-3 border-2 border-border bg-[#0f131b] px-4 py-3"
-            >
+        documents.map((document) => (
+          <div key={document.id} className="border-2 border-border bg-[#0f131b] px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black uppercase tracking-[0.08em] text-primaryText">
-                  {document.name}
-                </p>
+                <p className="text-sm font-black uppercase tracking-[0.08em] text-primaryText">{document.name}</p>
                 <p className="text-xs uppercase tracking-[0.16em] text-secondaryText">
                   {document.uploadedBy} • {document.uploadedAt}
                 </p>
@@ -29,8 +24,22 @@ function DocumentList({ documents }) {
                 {document.status}
               </span>
             </div>
-          ))}
-        </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 border-2 border-border bg-background px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-primaryText"
+              >
+                View
+              </button>
+              <button
+                type="button"
+                className="flex-1 border-2 border-border bg-background px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-primaryText"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))
       )}
     </div>
   );

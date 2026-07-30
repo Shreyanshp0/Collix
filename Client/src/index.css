@@ -15,6 +15,13 @@
 
   * {
     @apply box-border;
+    scrollbar-width: thin;
+    scrollbar-color: transparent #000000;
+    -ms-overflow-style: none;
+  }
+
+  *:hover {
+    scrollbar-color: #2563eb #000000;
   }
 
   html {
@@ -42,19 +49,37 @@
   ::selection {
     @apply bg-groupBlue text-primaryText;
   }
+
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #000000;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 0;
+  }
+
+  *:hover::-webkit-scrollbar-thumb {
+    background: #2563eb;
+  }
 }
 
 @layer components {
   .brutal-panel {
-    @apply rounded-md border-2 border-border bg-surface p-4 shadow-panel;
+    @apply rounded-md border-2 border-border bg-surface p-3.5 shadow-panel;
   }
 
   .brutal-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border-2 border-border bg-background px-4 py-3 text-sm font-bold uppercase tracking-[0.22em] text-primaryText shadow-brutal transition-transform duration-175 ease-out active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#fff];
+    @apply inline-flex items-center justify-center gap-2 rounded-md border-2 border-border bg-background px-3 py-2.5 text-sm font-bold uppercase tracking-[0.22em] text-primaryText shadow-brutal transition-transform duration-175 ease-out active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#fff];
   }
 
   .brutal-input {
-    @apply w-full rounded-md border-2 border-border bg-background px-4 py-3 text-sm text-primaryText outline-none placeholder:text-secondaryText focus:border-groupBlue;
+    @apply w-full rounded-md border-2 border-border bg-background px-3 py-2.5 text-sm text-primaryText outline-none placeholder:text-secondaryText focus:border-groupBlue;
   }
 
   .section-label {
