@@ -1,19 +1,11 @@
-import { Activity, Bell, ChevronDown, Users } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Activity, Bell } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth.jsx';
 import UserDropdown from './UserDropdown.jsx';
+import CurrentGroupDropdown from './CurrentGroupDropdown.jsx';
 
 function Navbar() {
-  const { isAuthenticated, logout, user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const isGroupsRoute = location.pathname.startsWith('/groups');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="border-b-2 border-border bg-[#07090d]">
@@ -37,23 +29,7 @@ function Navbar() {
 
         {/* Center: Group selector (compact) */}
         <div className="flex-1 flex items-center justify-center">
-          {isAuthenticated && (
-            <Link
-              to="/groups"
-              className={`hidden min-w-[260px] items-center justify-start gap-3 rounded-md border-2 border-border px-3 py-2 text-left md:flex ${
-                isGroupsRoute ? 'bg-surface shadow-group' : 'bg-[#0f131b]'
-              }`}
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-sm border-2 border-border bg-groupBlue text-primaryText">
-                <Users className="h-4 w-4" strokeWidth={2.25} />
-              </div>
-              <div className="min-w-0">
-                <p className="section-label text-primaryText">03 Launch Strategy</p>
-                <p className="truncate text-xs uppercase tracking-[0.22em] text-secondaryText">Current Group</p>
-              </div>
-              <ChevronDown className="ml-auto h-4 w-4 text-primaryText" strokeWidth={2.25} />
-            </Link>
-          )}
+          {isAuthenticated && <CurrentGroupDropdown />}
         </div>
 
         {/* Right: utilities */}

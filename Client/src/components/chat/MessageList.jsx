@@ -129,12 +129,12 @@ function MessageList({ documents = [], activeGroupKey }) {
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
-      <div ref={containerRef} className="scroll-panel h-full overflow-y-auto px-3 py-3">
-        <div className="flex min-h-full flex-col justify-end gap-4">
+      <div ref={containerRef} className="scroll-panel h-full overflow-y-auto px-2 py-1">
+        <div className="flex min-h-full flex-col justify-end gap-2">
           <div data-pagination-anchor="top" />
 
           {items.length === 0 ? (
-            <div className="border-2 border-border bg-[#0f131b] px-4 py-4 text-sm leading-6 text-secondaryText">
+            <div className="border-2 border-border bg-[#0f131b] px-3 py-3 text-sm leading-6 text-secondaryText">
               No messages yet. Start the conversation or ask AI something in this group.
             </div>
           ) : (
@@ -143,7 +143,7 @@ function MessageList({ documents = [], activeGroupKey }) {
                 return (
                   <div key={item.id} className="group">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-groupBlue bg-background text-xs font-black uppercase text-primaryText">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-groupBlue bg-background text-xs font-black uppercase text-primaryText">
                         {item.name.charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -155,10 +155,10 @@ function MessageList({ documents = [], activeGroupKey }) {
                             {item.time}
                           </span>
                         </div>
-                        <div className="mt-2 inline-block max-w-[520px] border-2 border-border bg-[#11161f] px-4 py-3 text-sm leading-7 text-primaryText shadow-[4px_4px_0px_0px_#000]">
+                        <div className="mt-1 inline-block max-w-[720px] border-2 border-border bg-[#11161f] px-3 py-2 text-sm leading-6 text-primaryText shadow-[4px_4px_0px_0px_#000]">
                           {item.message}
                         </div>
-                        <div className="mt-2 flex items-center gap-2 opacity-0 transition-opacity duration-175 group-hover:opacity-100 group-focus-within:opacity-100">
+                        <div className="mt-1 flex items-center gap-2 opacity-0 transition-opacity duration-175 group-hover:opacity-100 group-focus-within:opacity-100">
                           <button
                             type="button"
                             className="flex h-7 w-7 items-center justify-center border border-border bg-background text-secondaryText"
@@ -180,10 +180,10 @@ function MessageList({ documents = [], activeGroupKey }) {
 
               if (item.type === 'ai') {
                 return (
-                  <div key={item.id} className="ml-3 border-2 border-aiPurple bg-[#12101b] p-4 shadow-ai">
-                    <div className="flex items-start justify-between gap-3">
+                  <div key={item.id} className="ml-2 border-2 border-aiPurple bg-[#12101b] p-3 shadow-ai">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-aiPurple bg-background text-aiPurple">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-aiPurple bg-background text-aiPurple">
                           ✦
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -195,15 +195,13 @@ function MessageList({ documents = [], activeGroupKey }) {
                           </span>
                         </div>
                       </div>
-                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
-                        {item.time}
-                      </span>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">{item.time}</span>
                     </div>
-                    <p className="mt-3 text-sm leading-7 text-primaryText">
+                    <p className="mt-2 text-sm leading-6 text-primaryText">
                       Yes, per Section 8 of the 03 Launch Strategy document, we will use a single EC2 instance
                       with Docker containerization for the initial deployment.
                     </p>
-                    <div className="mt-3 inline-flex flex-wrap items-center gap-3 border border-aiPurple px-3 py-2 text-xs font-bold text-secondaryText">
+                    <div className="mt-2 inline-flex flex-wrap items-center gap-2 border border-aiPurple px-2 py-1 text-xs font-bold text-secondaryText">
                       <span className="text-aiPurple">Source:</span>
                       <span className="uppercase tracking-[0.16em] text-primaryText">q3_specs.pdf</span>
                       <span>(Section 8.2)</span>

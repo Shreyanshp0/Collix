@@ -66,7 +66,9 @@ function Modal({
       document.removeEventListener('keydown', handleKey);
       try {
         prevActive?.focus?.();
-      } catch {}
+      } catch (err) {
+        void err; // ignore focus restore errors
+      }
     };
   }, [isOpen, onClose]);
 
