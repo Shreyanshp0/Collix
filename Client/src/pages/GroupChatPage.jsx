@@ -1,4 +1,4 @@
-import { Activity, Hash } from 'lucide-react';
+import { Activity, Hash, FileText, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
@@ -38,31 +38,39 @@ function GroupChatPage() {
     return () => clearTimeout(t);
   }, [groupId]);
 
+  const gridColsClass = detailsCollapsed
+    ? 'xl:grid-cols-[64px_minmax(0,1fr)_minmax(260px,18%)]'
+    : 'xl:grid-cols-[minmax(260px,18%)_minmax(0,1fr)_minmax(260px,18%)]';
+
   return (
     <div className="h-full overflow-hidden">
-    <div
-  className="
-    grid
-    h-full
-    grid-cols-1
-    gap-2
-    overflow-hidden
-    xl:grid-cols-[minmax(260px,18%)_minmax(0,1fr)_minmax(260px,18%)]
-  "
->
+      <div className={`grid h-full grid-cols-1 gap-2 overflow-hidden ${gridColsClass}`}>
         {detailsCollapsed ? (
-          <div className="hidden xl:block">
+          <aside className="hidden xl:flex min-h-0 w-16 flex-col items-center gap-3 px-1 py-3">
             <button
               type="button"
               onClick={() => setDetailsCollapsed(false)}
-              className="fixed left-2 top-1/3 z-50 rounded-sm border-2 border-border bg-[#0f131b] px-2 py-2 text-sm font-black uppercase tracking-[0.08em] text-primaryText"
+              className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background text-primaryText"
+              aria-label="Open sidebar"
             >
-              Open
+              G
             </button>
-          </div>
+            <button type="button" className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background text-primaryText">
+              <FileText className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+            <button type="button" className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background text-primaryText">
+              <Users className="h-4 w-4" strokeWidth={2.25} />
+            </button>
+          </aside>
         ) : (
           <aside className="hidden xl:flex min-h-0 min-w-0 flex-col">
-            <GroupDetailsPanel activeGroupId={groupId} onCollapse={() => setDetailsCollapsed(true)} loading={loading} />
+            <GroupDetailsPanel
+              activeGroupId={groupId}
+              onCollapse={() => setDetailsCollapsed(true)}
+              loading={loading}
+              documents={documents}
+              members={members}
+            />
           </aside>
         )}
 
@@ -95,6 +103,7 @@ function GroupChatPage() {
               <AskAIBox
                 onAddDocuments={handleAddDocuments}
                 onOpenDocuments={() => setIsDocumentsModalOpen(true)}
+                activeGroupId={groupId}
               />
             </div>
           </section>

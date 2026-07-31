@@ -2,7 +2,7 @@ import { SendHorizontal } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
-function AskAIBox({ onAddDocuments, onOpenDocuments }) {
+function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
   const [question, setQuestion] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [uploadProgressMap, setUploadProgressMap] = useState({});
@@ -41,8 +41,9 @@ function AskAIBox({ onAddDocuments, onOpenDocuments }) {
             name: file.name,
             size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
             uploadedBy: 'You',
-            uploadedAt: 'Today',
+            uploadedAt: new Date().toISOString(),
             status: 'ready',
+            groupId: activeGroupId,
           },
         ]);
         toast.success(`${file.name} attached and indexed in mock flow.`);

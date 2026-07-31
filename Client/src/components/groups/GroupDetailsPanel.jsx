@@ -9,9 +9,23 @@ function TagPill({ children }) {
   );
 }
 
-export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading = false }) {
+export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading = false, documents = [], members = [] }) {
   const [showDocs, setShowDocs] = useState(false);
   const group = initialGroups.find((g) => g.id === activeGroupId) || initialGroups[0];
+
+  const memberCount = (members && members.length) || group.members || 0;
+  const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : (group.docs || 0);
+
+  const recentDocs = documents ? documents.filter((d) => d.groupId === activeGroupId).slice(0, 3) : [];
+
+  const formatDate = (iso) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return iso || 'Unknown';
+    }
+  };
 
   return (
     <section className="dashboard-shell noise-panel flex min-h-0 flex-1 flex-col px-2 py-2">
@@ -32,51 +46,28 @@ export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading =
               <div className="flex h-10 w-10 items-center justify-center rounded-sm border-2 border-border bg-groupBlue text-primaryText font-black">{group.name.charAt(0)}</div>
               <div className="min-w-0">
                 <div className="text-sm font-black uppercase tracking-[0.12em] text-primaryText">{group.name}</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.06em] text-secondaryText">{group.description}</div>
-                <div className="mt-1 text-xs text-secondaryText">{group.members} Members • {group.docs} Docs</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.06em] text-secondaryText">{group.description || 'No description provided.'}</div>
+                <div className="mt-1 text-xs text-secondaryText">{memberCount} Members • {docCount} Documents</div>
+                <div className="mt-1 text-xs text-secondaryText">Created • {group.createdAt ? formatDate(group.createdAt) : 'Unknown'}</div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: AI Knowledge Status (hero, compact) */}
-          <div className="rounded-sm border-2 border-border bg-[#0f131b] px-2 py-1.5">
-            <div className="text-xs font-black uppercase tracking-[0.08em] text-primaryText">AI STATUS</div>
-            <div className="mt-1">
-              <div className="text-sm font-black uppercase tracking-[0.06em] text-aiPurple">{group.aiReady ? '● AI READY' : '● CHAT ONLY'}</div>
-              <div className="mt-1 text-xs text-secondaryText">Knowledge {group.contextHealthy ? 'Healthy' : 'Syncing...'}</div>
-              <div className="mt-1 text-xs text-secondaryText">{group.docs} PDFs • {group.lastIndexed ? Math.round((Date.now() - group.lastIndexed) / 60000) + 'm' : 'N/A'} ago</div>
-            </div>
-          </div>
-
-          {/* Card 3: Tech Stack / Tags */}
-          <div className="rounded-sm border-2 border-border bg-[#0f131b] px-2 py-1.5">
-            <div className="text-xs font-black uppercase tracking-[0.08em] text-primaryText">TECH STACK</div>
-            <div className="mt-2 flex flex-wrap">
-              {(group.tags || []).slice(0, 8).map((t) => (
-                <TagPill key={t}>{t}</TagPill>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 4: Recent Activity (compact) */}
+          {/* Card 2: Recent Activity (documents-driven) */}
           <div className="rounded-sm border-2 border-border bg-[#0f131b] px-2 py-1.5">
             <div className="text-xs font-black uppercase tracking-[0.08em] text-primaryText">RECENT ACTIVITY</div>
             <div className="mt-1 space-y-1 text-sm text-secondaryText">
-              {(group.recentFiles || []).slice(0, 3).map((f) => (
-                <div key={f} className="flex items-center gap-2">
-                  <span>📄</span>
-                  <button type="button" onClick={() => setShowDocs(true)} className="text-secondaryText truncate text-sm">{f}</button>
-                </div>
-              ))}
-
-              {(group.pinned || []).slice(0, 3).map((p) => (
-                <div key={p} className="flex items-center gap-2">
-                  <span>📌</span>
-                  <div className="text-secondaryText truncate text-sm">{p}</div>
-                </div>
-              ))}
-
-              <div className="mt-1 text-xs text-secondaryText">🤖 AI answered {Math.max(0, Math.floor((group.messages || 0) / 10))} Qs today</div>
+              {recentDocs.length === 0 ? (
+                <div className="text-secondaryText">No recent activity.</div>
+              ) : (
+                recentDocs.map((d) => (
+                  <div key={d.id} className="flex items-center gap-2">
+                    <span>📄</span>
+                    <button type="button" onClick={() => setShowDocs(true)} className="text-secondaryText truncate text-sm">{d.name}</button>
+                    <span className="ml-2 text-[11px] text-secondaryText">{d.uploadedAt ? (typeof d.uploadedAt === 'string' && d.uploadedAt.length > 10 ? new Date(d.uploadedAt).toLocaleString() : d.uploadedAt) : ''}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
