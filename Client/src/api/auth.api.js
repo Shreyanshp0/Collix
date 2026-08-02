@@ -1,8 +1,18 @@
+import axiosClient from './axiosClient';
+
 export const authApi = {
-  login: async () => {
-    throw new Error('Auth API is intentionally not implemented in Phase 1.');
+  login: async ({ email, password }) => {
+    const response = await axiosClient.post('/auth/login', { email, password });
+    return response.data?.data || response.data;
   },
-  register: async () => {
-    throw new Error('Auth API is intentionally not implemented in Phase 1.');
+  register: async ({ username, email, password }) => {
+    const response = await axiosClient.post('/auth/register', { username, email, password });
+    return response.data?.data || response.data;
+  },
+  getMe: async () => {
+    const response = await axiosClient.get('/auth/me');
+    return response.data?.data || response.data;
   },
 };
+
+export default authApi;

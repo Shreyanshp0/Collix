@@ -4,6 +4,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import PageContainer from '../layouts/PageContainer.jsx';
+import useAuth from '../hooks/useAuth.jsx';
 
 const initialForm = {
   username: '',
@@ -14,6 +15,8 @@ const initialForm = {
 
 function RegisterPage() {
   const [formData, setFormData] = useState(initialForm);
+  const [submitting, setSubmitting] = useState(false);
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (event) => {
@@ -24,11 +27,28 @@ function RegisterPage() {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Register form values:', formData);
-    toast.success('Mock registration logged to console.');
-    navigate('/login');
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await register({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      });
+      toast.success('Account created successfully!');
+      navigate('/groups', { replace: true });
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Registration failed';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -44,8 +64,7 @@ function RegisterPage() {
           Create Your Collaboration Identity
         </h1>
         <p className="mt-5 max-w-2xl text-sm leading-7 text-secondaryText">
-          This form is intentionally lightweight for Phase 1. It captures the required fields, logs the values,
-          and leaves backend validation and authentication flows for later implementation.
+          Enter your details to create an account and join group workspaces.
         </p>
 
         <form className="mt-8 grid gap-4 sm:grid-cols-2" onSubmit={handleSubmit}>
@@ -61,6 +80,7 @@ function RegisterPage() {
                 className="brutal-input pl-11"
                 placeholder="Your username"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
@@ -77,6 +97,7 @@ function RegisterPage() {
                 className="brutal-input pl-11"
                 placeholder="you@company.com"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
@@ -93,6 +114,7 @@ function RegisterPage() {
                 className="brutal-input pl-11"
                 placeholder="Enter password"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
@@ -109,12 +131,13 @@ function RegisterPage() {
                 className="brutal-input pl-11"
                 placeholder="Repeat password"
                 required
+                disabled={submitting}
               />
             </div>
           </label>
 
-          <button type="submit" className="brutal-button sm:col-span-2">
-            Register
+          <button type="submit" className="brutal-button sm:col-span-2" disabled={submitting}>
+            {submitting ? 'Registering...' : 'Register'}
             <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
           </button>
         </form>

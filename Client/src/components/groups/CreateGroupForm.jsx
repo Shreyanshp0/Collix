@@ -1,12 +1,14 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import groupsApi from '../../api/groups.api.js';
 
-function CreateGroupForm({ onCreateGroup, onCancel }) {
+function CreateGroupForm({ onGroupCreated, onCancel }) {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     const trimmedName = groupName.trim();
 
     if (!trimmedName) {
@@ -14,10 +16,23 @@ function CreateGroupForm({ onCreateGroup, onCancel }) {
       return;
     }
 
-    onCreateGroup?.(trimmedName, description);
-    toast.success(`Created mock group: ${trimmedName}`);
-    setGroupName('');
-    setDescription('');
+    setSubmitting(true);
+    try {
+      const group = await groupsApi.create({
+        name: trimmedName,
+        description: description.trim(),
+      });
+      toast.success(`Created group: ${group.name || trimmedName}`);
+      setGroupName('');
+      setDescription('');
+      onGroupCreated?.(group);
+    } catch (error) {
+      console.error('Group creation error:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to create group';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -31,16 +46,17 @@ function CreateGroupForm({ onCreateGroup, onCancel }) {
       </div>
 
       <p className="text-sm leading-6 text-secondaryText">
-        This UI is mocked until the backend group creation endpoint is connected.
+        Enter details to create a collaboration space. You will automatically be set as the group owner.
       </p>
 
-      <div className="grid gap-2">
+      <div className="grid gap-3">
         <input
           type="text"
           className="brutal-input"
           placeholder="Group name"
           value={groupName}
           onChange={(event) => setGroupName(event.target.value)}
+          disabled={submitting}
         />
         <input
           type="text"
@@ -48,15 +64,26 @@ function CreateGroupForm({ onCreateGroup, onCancel }) {
           placeholder="Short description (optional)"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          disabled={submitting}
         />
       </div>
 
-      <div className="mt-2 flex items-center gap-2 justify-end">
-        <button type="button" className="rounded-md border-2 border-border bg-background px-3 py-2 text-sm" onClick={onCancel}>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          className="rounded-md border-2 border-border bg-background px-4 py-2 text-sm font-bold uppercase tracking-[0.08em]"
+          onClick={onCancel}
+          disabled={submitting}
+        >
           Cancel
         </button>
-        <button type="button" className="brutal-button" onClick={handleCreateGroup}>
-          Create
+        <button
+          type="button"
+          className="brutal-button"
+          onClick={handleCreateGroup}
+          disabled={submitting}
+        >
+          {submitting ? 'Creating...' : 'Create'}
         </button>
       </div>
     </div>

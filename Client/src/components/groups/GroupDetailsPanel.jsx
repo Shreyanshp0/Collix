@@ -1,22 +1,27 @@
 import { useState } from 'react';
+import { LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import Modal from '../shared/Modal.jsx';
 import DocumentList from '../documents/DocumentList.jsx';
-import { initialGroups } from '../../lib/groups.js';
+import groupsApi from '../../api/groups.api.js';
 
-function TagPill({ children }) {
-  return (
-    <span className="inline-block mr-1 mb-1 rounded-sm border-2 border-border bg-background px-2 py-1 text-xs font-bold uppercase tracking-[0.06em] text-primaryText">{children}</span>
-  );
-}
-
-export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading = false, documents = [], members = [] }) {
+export default function GroupDetailsPanel({
+  activeGroupId,
+  group,
+  onCollapse,
+  loading = false,
+  documents = [],
+  members = [],
+}) {
   const [showDocs, setShowDocs] = useState(false);
-  const group = initialGroups.find((g) => g.id === activeGroupId) || initialGroups[0];
+  const [leaving, setLeaving] = useState(false);
+  const navigate = useNavigate();
 
-  const memberCount = (members && members.length) || group.members || 0;
-  const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : (group.docs || 0);
-
-  const recentDocs = documents ? documents.filter((d) => d.groupId === activeGroupId).slice(0, 3) : [];
+  const groupName = group?.name || activeGroupId?.replace(/-/g, ' ') || 'Group';
+  const description = group?.description || 'No description provided.';
+  const memberCount = (members && members.length) || group?.memberCount || 0;
+  const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : 0;
 
   const formatDate = (iso) => {
     try {
@@ -24,6 +29,24 @@ export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading =
       return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
     } catch (e) {
       return iso || 'Unknown';
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!activeGroupId) return;
+    if (!window.confirm(`Are you sure you want to leave ${groupName}?`)) return;
+
+    setLeaving(true);
+    try {
+      await groupsApi.leave(activeGroupId);
+      toast.success(`Left group: ${groupName}`);
+      navigate('/groups', { replace: true });
+    } catch (error) {
+      console.error('Leave group error:', error);
+      const message = error.response?.data?.message || error.message || 'Failed to leave group';
+      toast.error(message);
+    } finally {
+      setLeaving(false);
     }
   };
 
@@ -40,42 +63,39 @@ export default function GroupDetailsPanel({ activeGroupId, onCollapse, loading =
 
       <div className="scroll-panel mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
         <div className="space-y-2">
-          {/* Card 1: Group Overview (compact) */}
-          <div className="rounded-sm border-2 border-border bg-[#0f131b] px-2 py-1.5">
+          {/* Card 1: Group Overview */}
+          <div className="rounded-sm border-2 border-border bg-[#0f131b] px-3 py-2">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-sm border-2 border-border bg-groupBlue text-primaryText font-black">{group.name.charAt(0)}</div>
-              <div className="min-w-0">
-                <div className="text-sm font-black uppercase tracking-[0.12em] text-primaryText">{group.name}</div>
-                <div className="mt-1 text-xs uppercase tracking-[0.06em] text-secondaryText">{group.description || 'No description provided.'}</div>
-                <div className="mt-1 text-xs text-secondaryText">{memberCount} Members • {docCount} Documents</div>
-                <div className="mt-1 text-xs text-secondaryText">Created • {group.createdAt ? formatDate(group.createdAt) : 'Unknown'}</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm border-2 border-border bg-groupBlue text-primaryText font-black uppercase">
+                {groupName.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-black uppercase tracking-[0.12em] text-primaryText truncate">{groupName}</div>
+                <div className="mt-1 text-xs uppercase tracking-[0.06em] text-secondaryText leading-relaxed">{description}</div>
+                <div className="mt-2 text-xs text-secondaryText font-bold">{memberCount} Members • {docCount} Documents</div>
+                <div className="mt-1 text-xs text-secondaryText">Created • {group?.createdAt ? formatDate(group.createdAt) : 'Recently'}</div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Recent Activity (documents-driven) */}
-          <div className="rounded-sm border-2 border-border bg-[#0f131b] px-2 py-1.5">
-            <div className="text-xs font-black uppercase tracking-[0.08em] text-primaryText">RECENT ACTIVITY</div>
-            <div className="mt-1 space-y-1 text-sm text-secondaryText">
-              {recentDocs.length === 0 ? (
-                <div className="text-secondaryText">No recent activity.</div>
-              ) : (
-                recentDocs.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2">
-                    <span>📄</span>
-                    <button type="button" onClick={() => setShowDocs(true)} className="text-secondaryText truncate text-sm">{d.name}</button>
-                    <span className="ml-2 text-[11px] text-secondaryText">{d.uploadedAt ? (typeof d.uploadedAt === 'string' && d.uploadedAt.length > 10 ? new Date(d.uploadedAt).toLocaleString() : d.uploadedAt) : ''}</span>
-                  </div>
-                ))
-              )}
-            </div>
+          {/* Action: Leave Group */}
+          <div className="rounded-sm border-2 border-border bg-[#0f131b] p-2">
+            <button
+              type="button"
+              onClick={handleLeaveGroup}
+              disabled={leaving}
+              className="flex w-full items-center justify-center gap-2 rounded-sm border-2 border-red-500/50 bg-red-500/10 py-2 text-xs font-bold uppercase tracking-[0.12em] text-red-400 hover:bg-red-500/20"
+            >
+              <LogOut className="h-3.5 w-3.5" strokeWidth={2.25} />
+              {leaving ? 'Leaving...' : 'Leave Group'}
+            </button>
           </div>
         </div>
       </div>
 
       {showDocs && (
         <Modal isOpen={showDocs} onClose={() => setShowDocs(false)} size="md" sectionLabel="TRACKED PDFs" title="Tracked PDFs">
-          <DocumentList documents={(group.recentFiles || []).map((name) => ({ name }))} />
+          <DocumentList documents={documents} />
         </Modal>
       )}
     </section>

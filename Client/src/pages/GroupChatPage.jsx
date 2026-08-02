@@ -1,6 +1,7 @@
 import { Activity, Hash, FileText, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import groupsApi from '../api/groups.api.js';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import DocumentList from '../components/documents/DocumentList.jsx';
@@ -9,38 +10,45 @@ import GroupDetailsPanel from '../components/groups/GroupDetailsPanel.jsx';
 import MemberList from '../components/groups/MemberList.jsx';
 import Modal from '../components/shared/Modal.jsx';
 
-
-const members = [
-  { id: '1', name: 'You', role: 'Admin', status: 'online' },
-  { id: '2', name: 'Sarah', role: 'Developer', status: 'online' },
-  { id: '3', name: 'Mike', role: 'DevOps', status: 'away' },
-  { id: '4', name: 'Priya', role: 'Designer', status: 'online' },
-  { id: '5', name: 'Alex', role: 'Data Scientist', status: 'online' },
-  { id: '6', name: 'John', role: 'PM', status: 'offline' },
-];
-
 function GroupChatPage() {
   const { groupId } = useParams();
+  const [group, setGroup] = useState(null);
+  const [members, setMembers] = useState([]);
   const [documents, setDocuments] = useState([]);
 
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+
+  const fetchGroupDetails = async () => {
+    if (!groupId) return;
+    try {
+      setLoading(true);
+      const data = await groupsApi.getById(groupId);
+      const groupData = data.group || data;
+      const membersData = data.members || groupData.members || [];
+      setGroup(groupData);
+      setMembers(membersData);
+    } catch (error) {
+      console.error('Failed to fetch group details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroupDetails();
+  }, [groupId]);
 
   const handleAddDocuments = (newDocuments) => {
     setDocuments((current) => [...newDocuments, ...current]);
   };
 
-  useEffect(() => {
-    // Simulate a brief joining/loading transition when group changes
-    setLoading(true);
-    const t = setTimeout(() => setLoading(false), 220);
-    return () => clearTimeout(t);
-  }, [groupId]);
-
   const gridColsClass = detailsCollapsed
     ? 'xl:grid-cols-[64px_minmax(0,1fr)_minmax(260px,18%)]'
     : 'xl:grid-cols-[minmax(260px,18%)_minmax(0,1fr)_minmax(260px,18%)]';
+
+  const groupDisplayName = group?.name || groupId?.replace(/-/g, ' ') || 'Group Chat';
 
   return (
     <div className="h-full overflow-hidden">
@@ -50,10 +58,10 @@ function GroupChatPage() {
             <button
               type="button"
               onClick={() => setDetailsCollapsed(false)}
-              className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background text-primaryText"
+              className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background font-black uppercase text-primaryText"
               aria-label="Open sidebar"
             >
-              G
+              {groupDisplayName.charAt(0)}
             </button>
             <button type="button" className="flex h-12 w-12 items-center justify-center rounded-sm border-2 border-border bg-background text-primaryText">
               <FileText className="h-4 w-4" strokeWidth={2.25} />
@@ -66,6 +74,7 @@ function GroupChatPage() {
           <aside className="hidden xl:flex min-h-0 min-w-0 flex-col">
             <GroupDetailsPanel
               activeGroupId={groupId}
+              group={group}
               onCollapse={() => setDetailsCollapsed(true)}
               loading={loading}
               documents={documents}
@@ -82,12 +91,12 @@ function GroupChatPage() {
               </div>
               <div className="min-w-0 flex-1 border-2 border-border bg-[#0f131b] px-3 py-2 shadow-group">
                 <p className="truncate text-base font-black uppercase tracking-[0.14em] text-primaryText">
-                  {loading ? 'Joining group...' : (groupId?.replace(/-/g, ' ') || 'Launch Strategy')}
+                  {loading ? 'Loading workspace...' : groupDisplayName}
                 </p>
               </div>
               <div className="hidden items-center gap-2 border-2 border-border bg-[#0f131b] px-2 py-1.5 lg:flex">
                 <Activity className="h-4 w-4 text-presenceGreen" strokeWidth={2.25} />
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-presenceGreen">Online</span>
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-presenceGreen">Active</span>
               </div>
             </div>
 
@@ -96,9 +105,6 @@ function GroupChatPage() {
               activeGroupKey={groupId}
             />
 
-            <div className="shrink-0 px-3 pb-2 text-sm font-bold text-presenceGreen">
-              ● Mike is typing...
-            </div>
             <div className="shrink-0 px-3 pb-2">
               <AskAIBox
                 onAddDocuments={handleAddDocuments}
@@ -111,22 +117,21 @@ function GroupChatPage() {
 
         <aside className="hidden xl:flex min-h-0 min-w-0 flex-col">
           <section className="dashboard-shell noise-panel flex min-h-0 flex-1 flex-col px-2 py-3">
-           <div className="border-b border-border/40 pb-3">
-  <p className="section-label text-aiPurple">
-    03 Active Members ({members.length})
-  </p>
-
-  <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-secondaryText">
-    Presence
-  </p>
-</div>
+            <div className="border-b border-border/40 pb-3">
+              <p className="section-label text-aiPurple">
+                03 Active Members ({members.length})
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-secondaryText">
+                Presence
+              </p>
+            </div>
             <div className="mt-3 min-h-0 flex-1 pr-2">
-  <div className="scroll-panel h-full overflow-y-auto">
-    <MemberList members={members} />
-  </div>
-</div>
+              <div className="scroll-panel h-full overflow-y-auto">
+                <MemberList members={members} />
+              </div>
+            </div>
             <div className="mt-2 shrink-0">
-              <AddMemberForm />
+              <AddMemberForm groupId={groupId} onMemberAdded={fetchGroupDetails} />
             </div>
           </section>
         </aside>

@@ -13,6 +13,7 @@ const initialForm = {
 
 function LoginPage() {
   const [formData, setFormData] = useState(initialForm);
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,15 +28,22 @@ function LoginPage() {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Login form values:', formData);
-    login({
-      email: formData.email,
-      username: formData.email.split('@')[0] || 'Demo User',
-    });
-    toast.success('Mock login complete.');
-    navigate(redirectPath, { replace: true });
+    setSubmitting(true);
+    try {
+      await login({
+        email: formData.email,
+        password: formData.password,
+      });
+      toast.success('Logged in successfully!');
+      navigate(redirectPath, { replace: true });
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Login failed';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -52,8 +60,7 @@ function LoginPage() {
             Login To Your Group Workspace
           </h1>
           <p className="mt-5 max-w-xl text-sm leading-7 text-secondaryText sm:text-base">
-            Phase 1 establishes the frontend shell only. Authentication is mock-based, routing is real, and the
-            layout follows the Neo-Brutalist dark system defined in the project docs.
+            Access secure group chat workspaces, AI assistant features, and document indexing with your authenticated credentials.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="rounded-md border-2 border-border bg-background p-4">
@@ -86,6 +93,7 @@ function LoginPage() {
                   className="brutal-input pl-11"
                   placeholder="you@company.com"
                   required
+                  disabled={submitting}
                 />
               </div>
             </label>
@@ -102,12 +110,13 @@ function LoginPage() {
                   className="brutal-input pl-11"
                   placeholder="Enter password"
                   required
+                  disabled={submitting}
                 />
               </div>
             </label>
 
-            <button type="submit" className="brutal-button w-full">
-              Login
+            <button type="submit" className="brutal-button w-full" disabled={submitting}>
+              {submitting ? 'Logging in...' : 'Login'}
               <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
             </button>
           </form>
