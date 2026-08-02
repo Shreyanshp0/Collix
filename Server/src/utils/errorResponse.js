@@ -4,5 +4,4 @@ function sendErrorResponse(res, statusCode, message) {
 		message,
 	});
 }
-
 export default sendErrorResponse;

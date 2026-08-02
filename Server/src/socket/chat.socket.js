@@ -4,8 +4,18 @@ import defaultLogger, { assertLogger } from '../utils/logger.js';
 import { registerSocketHandler, SOCKET_EVENTS } from '../utils/socket.utils.js';
 import { validateMessageInput } from '../validators/message.validator.js';
 import { validateSocketObjectId } from '../validators/socket.validator.js';
+import aiOrchestrator from '../services/rag/aiOrchestrator.service.js';
 
-export function registerChatSocketHandlers({ io, socket, groupService, messageService, presenceService, rateLimitGuard, logger = defaultLogger }) {
+export function registerChatSocketHandlers({
+	io,
+	socket,
+	groupService,
+	messageService,
+	presenceService,
+	aiOrchestratorService = aiOrchestrator,
+	rateLimitGuard,
+	logger = defaultLogger,
+}) {
 	assertLogger(logger);
 	const userId = socket.user._id;
 	const register = (event, handler) => registerSocketHandler(socket, event, handler, {
@@ -46,6 +56,38 @@ export function registerChatSocketHandlers({ io, socket, groupService, messageSe
 		const payload = { messageId: message._id.toString(), readBy: [toRealtimeUserDto(socket.user)] };
 		io.to(roomId).emit(SOCKET_EVENTS.MESSAGE_READ, payload);
 		return payload;
+	});
+
+	register(SOCKET_EVENTS.AI_ASK, async ({ groupId, question, stream = true, options = {} }) => {
+		const roomId = validateSocketObjectId(groupId, 'Group ID');
+		await groupService.verifyMemberAccess({ groupId: roomId, userId });
+
+		void Promise.resolve(
+			aiOrchestratorService.ask({
+				groupId: roomId,
+				question,
+				userId,
+				options: { stream, ...options },
+				onEvent: ({ event, data }) => {
+					if (event === SOCKET_EVENTS.AI_THINKING || event === 'ai:thinking') {
+						io.to(roomId).emit(SOCKET_EVENTS.AI_THINKING, data);
+					} else if (event === SOCKET_EVENTS.AI_DELTA || event === 'ai:delta') {
+						io.to(roomId).emit(SOCKET_EVENTS.AI_DELTA, data);
+					} else if (event === SOCKET_EVENTS.AI_COMPLETE || event === 'ai:complete') {
+						io.to(roomId).emit(SOCKET_EVENTS.AI_COMPLETE, data);
+						if (data?.message) {
+							io.to(roomId).emit(SOCKET_EVENTS.MESSAGE_NEW, data.message);
+						}
+					} else if (event === SOCKET_EVENTS.AI_ERROR || event === 'ai:error') {
+						io.to(roomId).emit(SOCKET_EVENTS.AI_ERROR, data);
+					}
+				},
+			})
+		).catch((error) => {
+			logger.error('Async AI ask failed in socket handler', { error, groupId: roomId, userId });
+		});
+
+		return { status: 'accepted', groupId: roomId };
 	});
 
 	for (const [event, isTyping] of [[SOCKET_EVENTS.TYPING_START, true], [SOCKET_EVENTS.TYPING_STOP, false]]) {

@@ -15,6 +15,13 @@ export const SOCKET_EVENTS = Object.freeze({
 	TYPING: 'typing',
 	PRESENCE_UPDATE: 'presence:update',
 	SOCKET_ERROR: 'socket:error',
+
+	// AI Streaming Events
+	AI_ASK: 'ai:ask',
+	AI_THINKING: 'ai:thinking',
+	AI_DELTA: 'ai:delta',
+	AI_COMPLETE: 'ai:complete',
+	AI_ERROR: 'ai:error',
 });
 
 function safeError(error) {

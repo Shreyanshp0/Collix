@@ -9,24 +9,38 @@ export function createMessageService({ indexer, logger = defaultLogger } = {}) {
 	assertLogger(logger);
 
 	async function requireMembership(groupId, userId) {
+		if (!userId) throw new AuthorizationError('User context is required');
 		const membership = await GroupMember.exists({ group: groupId, user: userId, banned: false });
 		if (!membership) throw new AuthorizationError('You are not an active member of this group');
 	}
 
 	async function createMessage({ groupId, senderId, message = '', type = 'text', attachments = [], replyTo, mentions = [], aiMetadata }) {
-		await requireMembership(groupId, senderId);
+		if (type !== 'ai' && senderId) {
+			await requireMembership(groupId, senderId);
+		}
 		validateMessageInput({ message, type, attachments });
 		if (replyTo) {
 			const parent = await Message.exists({ _id: replyTo, group: groupId, deleted: false });
 			if (!parent) throw new NotFoundError('Reply target message');
 		}
-		const savedMessage = await Message.create({ group: groupId, sender: senderId, message: message.trim(), type, attachments, replyTo, mentions, aiMetadata });
+		const savedMessage = await Message.create({ group: groupId, sender: senderId || null, message: message.trim(), type, attachments, replyTo, mentions, aiMetadata });
 		if (indexer?.indexMessage) {
 			void Promise.resolve(indexer.indexMessage(savedMessage)).catch((error) => {
 				logger.error('Message indexing dispatch failed', { error, messageId: savedMessage._id.toString() });
 			});
 		}
 		return savedMessage;
+	}
+
+	async function getRecentConversation({ groupId, limit = 15 }) {
+		if (!groupId) return [];
+		const safeLimit = Math.min(Math.max(1, Number(limit) || 15), 50);
+		const items = await Message.find({ group: groupId })
+			.sort({ createdAt: -1, _id: -1 })
+			.limit(safeLimit)
+			.populate('sender', 'name username avatar')
+			.lean();
+		return items.reverse();
 	}
 
 	async function listMessages({ groupId, requesterId, page = DEFAULT_PAGE, limit = DEFAULT_PAGE_SIZE }) {
@@ -55,7 +69,7 @@ export function createMessageService({ indexer, logger = defaultLogger } = {}) {
 		return message;
 	}
 
-	return { createMessage, listMessages, markMessageRead };
+	return { createMessage, getRecentConversation, listMessages, markMessageRead, requireMembership };
 }
 
 const messageService = createMessageService();

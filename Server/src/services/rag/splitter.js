@@ -7,11 +7,13 @@ export function createTextSplitter({ chunkSize = 1000, chunkOverlap = 150 } = {}
 
 	function splitText({ text, metadata = {} }) {
 		if (typeof text !== 'string' || !text.trim()) throw new ValidationError('Text is required for splitting');
-		const chunks = [];
 		const normalizedText = text.trim();
 		const step = chunkSize - chunkOverlap;
+		const chunks = [];
 		for (let start = 0, index = 0; start < normalizedText.length; start += step, index += 1) {
-			chunks.push({ content: normalizedText.slice(start, start + chunkSize), metadata: { ...metadata, chunkIndex: index } });
+			const content = normalizedText.slice(start, start + chunkSize);
+			if (!content.trim()) continue;
+			chunks.push({ content, metadata: { ...metadata, chunkIndex: index } });
 		}
 		return chunks;
 	}

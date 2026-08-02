@@ -21,9 +21,24 @@ export function toMessageDto(message, { author } = {}) {
 		deleted: Boolean(message.deleted),
 	};
 	if (message.aiMetadata?.sources) metadata.sources = message.aiMetadata.sources;
+	if (message.aiMetadata?.promptVersion) metadata.promptVersion = message.aiMetadata.promptVersion;
+
+	let authorDto;
+	if (message.type === 'ai') {
+		authorDto = {
+			id: 'ai',
+			name: message.aiMetadata?.displayName || author?.name || 'Collix AI',
+			type: 'ai',
+			provider: message.aiMetadata?.provider || 'groq',
+			model: message.aiMetadata?.model || 'llama-3.1-8b-instant',
+		};
+	} else {
+		authorDto = toUserDto(author || message.sender) || { id: getId(message.sender), name: 'System' };
+	}
+
 	return {
 		id: getId(message),
-		author: toUserDto(author || message.sender) || { id: getId(message.sender), name: 'System' },
+		author: authorDto,
 		message: message.message,
 		ts: message.createdAt,
 		meta: metadata,
