@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import GroupMember from '../models/GroupMember.js';
 import { AuthenticationError, ConflictError } from '../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../utils/logger.js';
 import { validateLoginInput, validateRegistrationInput } from '../validators/auth.validator.js';
@@ -15,6 +16,10 @@ function getJwtSecret() {
 
 function normalizeEmail(email) {
 	return email.trim().toLowerCase();
+}
+
+function escapeRegex(text) {
+	return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
 
 function sanitizeUser(user) {
@@ -86,10 +91,39 @@ export function createAuthService({ logger = defaultLogger } = {}) {
 		return User.findById(userId);
 	}
 
-	return { getUserById, loginUser, registerUser };
+	async function searchUsers({ query, currentUserId, groupId, limit = 10 }) {
+		if (!query || typeof query !== 'string' || query.trim().length < 2) {
+			return [];
+		}
+
+		const safeQuery = escapeRegex(query.trim());
+		const excludeUserIds = [currentUserId];
+
+		if (groupId) {
+			const existingMembers = await GroupMember.find({ group: groupId }).select('user').lean();
+			existingMembers.forEach((m) => {
+				if (m.user) excludeUserIds.push(m.user);
+			});
+		}
+
+		const users = await User.find({
+			_id: { $nin: excludeUserIds },
+			$or: [
+				{ name: { $regex: safeQuery, $options: 'i' } },
+				{ username: { $regex: safeQuery, $options: 'i' } },
+			],
+		})
+			.select('_id name username avatar')
+			.limit(limit)
+			.lean();
+
+		return users;
+	}
+
+	return { getUserById, loginUser, registerUser, searchUsers };
 }
 
 const authService = createAuthService();
 
-export const { getUserById, loginUser, registerUser } = authService;
+export const { getUserById, loginUser, registerUser, searchUsers } = authService;
 export { comparePassword, generateToken, hashPassword, sanitizeUser, verifyToken };

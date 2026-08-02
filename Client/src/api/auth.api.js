@@ -13,6 +13,12 @@ export const authApi = {
     const response = await axiosClient.get('/auth/me');
     return response.data?.data || response.data;
   },
+  searchUsers: async ({ query, groupId }) => {
+    const response = await axiosClient.get('/auth/users/search', {
+      params: { q: query, groupId },
+    });
+    return response.data?.data?.users || response.data?.data || response.data;
+  },
 };
 
 export default authApi;

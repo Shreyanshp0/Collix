@@ -22,6 +22,7 @@ export default function GroupDetailsPanel({
   const description = group?.description || 'No description provided.';
   const memberCount = (members && members.length) || group?.memberCount || 0;
   const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : 0;
+  const visibility = group?.visibility === 'public' ? 'PUBLIC' : 'PRIVATE';
 
   const formatDate = (iso) => {
     try {
@@ -70,7 +71,14 @@ export default function GroupDetailsPanel({
                 {groupName.charAt(0)}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-black uppercase tracking-[0.12em] text-primaryText truncate">{groupName}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-sm font-black uppercase tracking-[0.12em] text-primaryText truncate">{groupName}</div>
+                  <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] border rounded-sm ${
+                    visibility === 'PUBLIC' ? 'border-presenceGreen text-presenceGreen' : 'border-groupBlue text-groupBlue'
+                  }`}>
+                    {visibility}
+                  </span>
+                </div>
                 <div className="mt-1 text-xs uppercase tracking-[0.06em] text-secondaryText leading-relaxed">{description}</div>
                 <div className="mt-2 text-xs text-secondaryText font-bold">{memberCount} Members • {docCount} Documents</div>
                 <div className="mt-1 text-xs text-secondaryText">Created • {group?.createdAt ? formatDate(group.createdAt) : 'Recently'}</div>

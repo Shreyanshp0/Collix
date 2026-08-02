@@ -6,13 +6,18 @@ export const groupsApi = {
     return response.data?.data?.groups || response.data?.data || response.data;
   },
 
+  browse: async () => {
+    const response = await axiosClient.get('/groups/browse');
+    return response.data?.data?.groups || response.data?.data || response.data;
+  },
+
   getById: async (groupId) => {
     const response = await axiosClient.get(`/groups/${groupId}`);
     return response.data?.data || response.data;
   },
 
-  create: async ({ name, description }) => {
-    const response = await axiosClient.post('/groups', { name, description });
+  create: async ({ name, description, visibility = 'private' }) => {
+    const response = await axiosClient.post('/groups', { name, description, visibility });
     return response.data?.data?.group || response.data?.data || response.data;
   },
 
@@ -22,11 +27,11 @@ export const groupsApi = {
   },
 
   leave: async (groupId) => {
-    const response = await axiosClient.delete(`/groups/${groupId}/leave`);
+    const response = await axiosClient.post(`/groups/${groupId}/leave`);
     return response.data;
   },
 
-  addMember: async ({ groupId, userId, role = 'MEMBER' }) => {
+  addMember: async ({ groupId, userId, role = 'member' }) => {
     const response = await axiosClient.post(`/groups/${groupId}/members`, { userId, role });
     return response.data?.data?.member || response.data?.data || response.data;
   },

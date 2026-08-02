@@ -1,23 +1,40 @@
 import { io } from 'socket.io-client';
 
 let socket = null;
+let currentToken = null;
 
 export function connectSocket(token) {
-  if (!token) return null;
+  if (!token) {
+    disconnectSocket();
+    return null;
+  }
+
   const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
-  if (socket && socket.connected) {
+  // Tab-level singleton: reuse active connection if token matches
+  if (socket && (socket.connected || socket.active) && currentToken === token) {
     return socket;
   }
 
+  // If token changed or existing socket is disconnected, clean up old instance
   if (socket) {
     socket.disconnect();
+    socket = null;
   }
+
+  currentToken = token;
 
   socket = io(socketUrl, {
     auth: { token },
     transports: ['websocket', 'polling'],
     autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('Socket authentication handshake error:', error.message || error);
   });
 
   return socket;
@@ -27,6 +44,7 @@ export function disconnectSocket() {
   if (socket) {
     socket.disconnect();
     socket = null;
+    currentToken = null;
   }
 }
 

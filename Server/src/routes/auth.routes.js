@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { login, me, register } from '../controllers/auth.controller.js';
+import { login, me, register, search } from '../controllers/auth.controller.js';
 import { validateLoginInput, validateRegistrationInput } from '../validators/auth.validator.js';
 
 const router = Router();
@@ -23,5 +23,11 @@ router.post('/login', validate({ body: validateLoginInput }), login);
  * Fetch the currently authenticated user profile.
  */
 router.get('/me', authenticate, me);
+
+/**
+ * GET /api/v1/auth/users/search
+ * Search users by username or display name (excluding current user and group members).
+ */
+router.get('/users/search', authenticate, search);
 
 export default router;

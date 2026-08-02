@@ -1,159 +1,278 @@
-import { Smile, ThumbsUp } from 'lucide-react';
+import { AlertCircle, RefreshCw, Smile, ThumbsUp } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import useAuth from '../../hooks/useAuth.jsx';
+import useSocket from '../../hooks/useSocket.jsx';
+import LoadingSpinner from '../common/LoadingSpinner.jsx';
+import ReadReceipt from './ReadReceipt.jsx';
 
-const conversation = [
-  {
-    id: '1',
-    type: 'message',
-    name: 'Alex',
-    time: '10:14 AM',
-    accent: 'text-groupBlue',
-    message: 'Did we finalize the EC2 pipeline for the production deployment?',
-  },
-  {
-    id: '1-ai',
-    type: 'ai',
-    time: '10:14 AM',
-  },
-  {
-    id: '2',
-    type: 'message',
-    name: 'Sarah',
-    time: '10:15 AM',
-    accent: 'text-groupBlue',
-    message: "Perfect, I'll update the infrastructure diagram.",
-  },
-];
+const BOTTOM_THRESHOLD = 100; // px threshold for smart scroll
 
-const BOTTOM_THRESHOLD = 40;
+function formatTime(isoString) {
+  if (!isoString) return '';
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return isoString;
+  }
+}
 
-function MessageList({ documents = [], activeGroupKey }) {
+function MessageList({
+  messages = [],
+  loading = false,
+  loadingMore = false,
+  error = null,
+  hasNextPage = false,
+  onLoadMore,
+  onRetry,
+  documents = [],
+  activeGroupKey,
+}) {
+  const { user: currentUser } = useAuth();
+  const { socket, isConnected } = useSocket();
   const containerRef = useRef(null);
-  const initializedRef = useRef(false);
+  const initialScrollDoneRef = useRef(false);
   const shouldStickToBottomRef = useRef(true);
-  const previousCountRef = useRef(0);
+  const previousCountRef = useRef(messages.length);
+  const pendingReadSetRef = useRef(new Set());
   const [newMessageCount, setNewMessageCount] = useState(0);
-
-  const items = useMemo(
-    () => [
-      ...conversation,
-      ...documents.map((document) => ({
-        id: document.id,
-        type: 'document',
-        document,
-      })),
-    ],
-    [documents],
-  );
 
   const isNearBottom = () => {
     const container = containerRef.current;
-
-    if (!container) {
-      return true;
-    }
-
+    if (!container) return true;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
-
     return distanceFromBottom <= BOTTOM_THRESHOLD;
   };
 
   const scrollToBottom = (behavior = 'auto') => {
     const container = containerRef.current;
-
-    if (!container) {
-      return;
-    }
-
+    if (!container) return;
     container.scrollTo({
       top: container.scrollHeight,
       behavior,
     });
   };
 
+  // Reset flags when group workspace changes
   useLayoutEffect(() => {
-    initializedRef.current = false;
-    previousCountRef.current = items.length;
+    initialScrollDoneRef.current = false;
+    previousCountRef.current = messages.length;
+    pendingReadSetRef.current.clear();
     setNewMessageCount(0);
-  }, [activeGroupKey, items.length]);
+  }, [activeGroupKey]);
 
+  // One-time auto-scroll to bottom after initial message history load
   useLayoutEffect(() => {
-    if (!initializedRef.current) {
+    if (!loading && !error && messages.length > 0 && !initialScrollDoneRef.current) {
       scrollToBottom('auto');
-      initializedRef.current = true;
+      initialScrollDoneRef.current = true;
       shouldStickToBottomRef.current = true;
+      previousCountRef.current = messages.length;
     }
-  }, [activeGroupKey, items.length]);
+  }, [loading, error, messages, activeGroupKey]);
 
+  // Track scroll position to update sticky scroll intent
   useEffect(() => {
     const container = containerRef.current;
-
-    if (!container) {
-      return undefined;
-    }
+    if (!container) return;
 
     const handleScroll = () => {
       const pinned = isNearBottom();
       shouldStickToBottomRef.current = pinned;
-
       if (pinned) {
         setNewMessageCount(0);
       }
     };
 
-    handleScroll();
     container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, [activeGroupKey]);
-
+  // Smart scroll when live messages arrive
   useEffect(() => {
+    if (!initialScrollDoneRef.current) return;
+
     const previousCount = previousCountRef.current;
-    const nextCount = items.length;
+    const currentCount = messages.length;
 
-    if (nextCount > previousCount) {
-      const addedCount = nextCount - previousCount;
-
+    if (currentCount > previousCount) {
+      const addedCount = currentCount - previousCount;
       if (shouldStickToBottomRef.current) {
         scrollToBottom('smooth');
       } else {
-        setNewMessageCount((current) => current + addedCount);
+        setNewMessageCount((c) => c + addedCount);
       }
     }
+    previousCountRef.current = currentCount;
+  }, [messages]);
 
-    previousCountRef.current = nextCount;
-  }, [items]);
+  // IntersectionObserver Viewport Detection for Read Receipts
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !socket || !isConnected || !activeGroupKey) return;
+
+    const currentUserId = currentUser?.id || currentUser?._id;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          const msgId = entry.target.getAttribute('data-message-id');
+          if (!msgId) return;
+
+          const targetMsg = messages.find((m) => m.id === msgId);
+          if (!targetMsg) return;
+
+          const authorId = targetMsg.author?.id || targetMsg.author?._id;
+          // Rule 1: Skip own messages
+          if (authorId && currentUserId && authorId === currentUserId) return;
+
+          // Rule 2: Skip if already in pending read set
+          if (pendingReadSetRef.current.has(msgId)) return;
+
+          // Rule 3: Skip if current user is already in readBy array
+          const readBy = targetMsg.meta?.readBy || [];
+          if (readBy.some((u) => (u.id || u._id) === currentUserId)) return;
+
+          // Emit read receipt and mark in pending set
+          pendingReadSetRef.current.add(msgId);
+          socket.emit('message:read', {
+            groupId: activeGroupKey,
+            messageId: msgId,
+          });
+        });
+      },
+      {
+        root: container,
+        threshold: 0.5,
+      },
+    );
+
+    const messageNodes = container.querySelectorAll('[data-message-id]');
+    messageNodes.forEach((node) => observer.observe(node));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [messages, socket, isConnected, activeGroupKey, currentUser]);
+
+  const docItems = useMemo(
+    () =>
+      documents.map((document) => ({
+        id: document.id,
+        type: 'document',
+        document,
+      })),
+    [documents],
+  );
+
+  const currentUserId = currentUser?.id || currentUser?._id;
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden">
       <div ref={containerRef} className="scroll-panel h-full overflow-y-auto px-2 py-1">
         <div className="flex min-h-full flex-col justify-end gap-2">
-          <div data-pagination-anchor="top" />
+          {/* Top Pagination Anchor & Load More Button */}
+          {hasNextPage && (
+            <div className="flex justify-center py-2">
+              <button
+                type="button"
+                className="rounded-md border-2 border-border bg-background px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-primaryText hover:bg-surface disabled:opacity-50"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'Loading Older Messages...' : 'Load Older Messages'}
+              </button>
+            </div>
+          )}
 
-          {items.length === 0 ? (
-            <div className="border-2 border-border bg-[#0f131b] px-3 py-3 text-sm leading-6 text-secondaryText">
-              No messages yet. Start the conversation or ask AI something in this group.
+          {/* Initial Loading Spinner */}
+          {loading ? (
+            <div className="py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            /* Error State with Retry Button */
+            <div className="flex flex-col items-center justify-center rounded-md border-2 border-red-500/40 bg-red-500/10 p-6 text-center shadow-panel">
+              <AlertCircle className="h-8 w-8 text-red-400" />
+              <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-red-400">{error}</p>
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-4 flex items-center gap-2 rounded-md border-2 border-border bg-background px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-primaryText"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Retry
+              </button>
+            </div>
+          ) : messages.length === 0 && docItems.length === 0 ? (
+            /* Empty Conversation State */
+            <div className="border-2 border-border bg-[#0f131b] px-4 py-6 text-center text-sm leading-6 text-secondaryText">
+              No messages yet in this group. Start the conversation!
             </div>
           ) : (
-            items.map((item) => {
-              if (item.type === 'message') {
+            /* Message List Items */
+            <>
+              {messages.map((item) => {
+                const authorId = item.author?.id || item.author?._id;
+                const authorName = item.author?.name || item.author?.username || 'User';
+                const isAI = item.meta?.type === 'ai' || item.author?.type === 'ai';
+                const isOwnMessage = Boolean(currentUserId && authorId === currentUserId);
+
+                if (isAI) {
+                  return (
+                    <div key={item.id} data-message-id={item.id} className="ml-2 border-2 border-aiPurple bg-[#12101b] p-3 shadow-ai">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-aiPurple bg-background text-aiPurple font-bold">
+                            ✦
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-black uppercase tracking-[0.12em] text-aiPurple">
+                              {item.author?.name || 'Collix AI'}
+                            </p>
+                            <span className="border border-aiPurple px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-aiPurple">
+                              RAG Grounded
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
+                          {formatTime(item.ts)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-primaryText">{item.message}</p>
+                      {item.meta?.sources && item.meta.sources.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 border border-aiPurple px-2 py-1 text-xs font-bold text-secondaryText">
+                          <span className="text-aiPurple">Sources:</span>
+                          {item.meta.sources.map((src, idx) => (
+                            <span key={idx} className="uppercase tracking-[0.16em] text-primaryText">
+                              {src.filename || src.title || 'Doc'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={item.id} className="group">
+                  <div key={item.id} data-message-id={item.id} className="group">
                     <div className="flex items-start gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-groupBlue bg-background text-xs font-black uppercase text-primaryText">
-                        {item.name.charAt(0)}
+                        {authorName.charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-3">
-                          <p className={`text-sm font-black uppercase tracking-[0.12em] ${item.accent}`}>
-                            {item.name}
+                          <p className="text-sm font-black uppercase tracking-[0.12em] text-groupBlue">
+                            {authorName}
                           </p>
                           <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
-                            {item.time}
+                            {formatTime(item.ts)}
                           </span>
+                          <ReadReceipt readBy={item.meta?.readBy || []} isOwnMessage={isOwnMessage} />
                         </div>
                         <div className="mt-1 inline-block max-w-[720px] border-2 border-border bg-[#11161f] px-3 py-2 text-sm leading-6 text-primaryText shadow-[4px_4px_0px_0px_#000]">
                           {item.message}
@@ -176,63 +295,42 @@ function MessageList({ documents = [], activeGroupKey }) {
                     </div>
                   </div>
                 );
-              }
+              })}
 
-              if (item.type === 'ai') {
+              {/* Document Attachments */}
+              {docItems.map((docItem) => {
+                const docUploaderName =
+                  typeof docItem.document.uploadedBy === 'object'
+                    ? docItem.document.uploadedBy?.name ||
+                      docItem.document.uploadedBy?.username ||
+                      docItem.document.uploadedBy?.id ||
+                      'User'
+                    : docItem.document.uploadedBy || 'User';
+
                 return (
-                  <div key={item.id} className="ml-2 border-2 border-aiPurple bg-[#12101b] p-3 shadow-ai">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-aiPurple bg-background text-aiPurple">
-                          ✦
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-black uppercase tracking-[0.12em] text-aiPurple">
-                            AI Assistant
-                          </p>
-                          <span className="border border-aiPurple px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-aiPurple">
-                            RAG Grounded
-                          </span>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">{item.time}</span>
+                  <div
+                    key={docItem.id}
+                    className="ml-3 border-2 border-border bg-[#11161f] p-4 shadow-[4px_4px_0px_0px_#3B82F6]"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-sm font-black uppercase tracking-[0.12em] text-groupBlue">
+                        PDF Attached
+                      </p>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
+                        {formatTime(docItem.document.uploadedAt)}
+                      </span>
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-primaryText">
-                      Yes, per Section 8 of the 03 Launch Strategy document, we will use a single EC2 instance
-                      with Docker containerization for the initial deployment.
-                    </p>
-                    <div className="mt-2 inline-flex flex-wrap items-center gap-2 border border-aiPurple px-2 py-1 text-xs font-bold text-secondaryText">
-                      <span className="text-aiPurple">Source:</span>
-                      <span className="uppercase tracking-[0.16em] text-primaryText">q3_specs.pdf</span>
-                      <span>(Section 8.2)</span>
+                    <p className="mt-3 text-sm font-bold text-primaryText">{docItem.document.name}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-secondaryText">
+                      <span>Uploaded By: {docUploaderName}</span>
+                      <span className="border border-border px-2 py-1 text-groupBlue">
+                        {docItem.document.status}
+                      </span>
                     </div>
                   </div>
                 );
-              }
-
-              return (
-                <div
-                  key={item.id}
-                  className="ml-3 border-2 border-border bg-[#11161f] p-4 shadow-[4px_4px_0px_0px_#3B82F6]"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm font-black uppercase tracking-[0.12em] text-groupBlue">
-                      PDF Attached
-                    </p>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
-                      {item.document.uploadedAt}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm font-bold text-primaryText">{item.document.name}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-secondaryText">
-                    <span>Uploaded By: {item.document.uploadedBy}</span>
-                    <span className="border border-border px-2 py-1 text-groupBlue">
-                      {item.document.status}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
+              })}
+            </>
           )}
         </div>
       </div>
@@ -247,7 +345,7 @@ function MessageList({ documents = [], activeGroupKey }) {
             scrollToBottom('smooth');
           }}
         >
-          ↓ {newMessageCount} New Messages
+          ↓ {newMessageCount} New Message{newMessageCount > 1 ? 's' : ''}
         </button>
       )}
     </div>

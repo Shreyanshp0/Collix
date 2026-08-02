@@ -1,7 +1,17 @@
 import { toUserDto } from './user.mapper.js';
 
 function getId(value) {
-	return value?.id || value?._id?.toString?.() || value?._id || value?.toString?.();
+	if (!value) return null;
+	if (typeof value === 'string') return value;
+	if (typeof value === 'object') {
+		if (value.id && typeof value.id === 'string') return value.id;
+		if (value._id) return value._id.toString();
+		if (typeof value.toString === 'function') {
+			const str = value.toString();
+			if (str !== '[object Object]') return str;
+		}
+	}
+	return String(value);
 }
 
 export function toDocumentDto(document) {

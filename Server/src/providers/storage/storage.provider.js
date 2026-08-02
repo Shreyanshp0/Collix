@@ -1,3 +1,5 @@
+import imagekitProvider from './imagekit.provider.js';
+
 export class StorageProvider {
 	async uploadFile(_file, _options = {}) {
 		throw new Error('Storage provider must implement uploadFile');
@@ -8,4 +10,4 @@ export class StorageProvider {
 	}
 }
 
-export default StorageProvider;
+export default imagekitProvider;

@@ -3,7 +3,7 @@ import { Circle } from 'lucide-react';
 const statusClasses = {
   online: 'text-presenceGreen',
   away: 'text-warning',
-  offline: 'text-offline',
+  offline: 'text-secondaryText',
 };
 
 function MemberList({ members = [] }) {
@@ -13,8 +13,8 @@ function MemberList({ members = [] }) {
         const userObj = member.user || member;
         const name = userObj.name || userObj.username || member.name || 'Member';
         const role = member.role || 'MEMBER';
-        const status = userObj.status || member.status || 'online';
-        const statusClass = statusClasses[status] || statusClasses.online;
+        const status = (member.status || userObj.status || 'offline').toLowerCase();
+        const statusClass = statusClasses[status] || statusClasses.offline;
 
         return (
           <div

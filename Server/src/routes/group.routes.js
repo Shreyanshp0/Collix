@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { validateGroupQuery, validateNewGroup } from '../validators/group.validator.js';
+import { addMember, browse, create, getById, join, leave, list } from '../controllers/group.controller.js';
+import { validateAddMemberInput, validateGroupParams, validateNewGroup } from '../validators/group.validator.js';
+import { validatePagination } from '../validators/message.validator.js';
 import { NotImplementedError } from '../utils/AppError.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
@@ -11,41 +13,43 @@ const router = Router();
  * GET /api/v1/groups
  * List groups available to the authenticated user.
  */
-router.get('/groups', authenticate, validate({ query: validateGroupQuery }), asyncHandler(async () => {
-	throw new NotImplementedError('Group listing');
-}));
+router.get('/groups', authenticate, validate({ query: validatePagination }), list);
+
+/**
+ * GET /api/v1/groups/browse
+ * Browse public groups not yet joined by the authenticated user.
+ */
+router.get('/groups/browse', authenticate, validate({ query: validatePagination }), browse);
 
 /**
  * POST /api/v1/groups
  * Create a new group.
  */
-router.post('/groups', authenticate, validate({ body: validateNewGroup }), asyncHandler(async () => {
-	throw new NotImplementedError('Group creation');
-}));
+router.post('/groups', authenticate, validate({ body: validateNewGroup }), create);
 
 /**
  * GET /api/v1/groups/:groupId
  * Fetch a single group by id.
  */
-router.get('/groups/:groupId', authenticate, validate({ params: (value) => value }), asyncHandler(async () => {
-	throw new NotImplementedError('Group retrieval');
-}));
+router.get('/groups/:groupId', authenticate, validate({ params: validateGroupParams }), getById);
 
 /**
  * POST /api/v1/groups/:groupId/join
  * Join an existing group.
  */
-router.post('/groups/:groupId/join', authenticate, validate({ params: (value) => value }), asyncHandler(async () => {
-	throw new NotImplementedError('Group join');
-}));
+router.post('/groups/:groupId/join', authenticate, validate({ params: validateGroupParams }), join);
 
 /**
  * POST /api/v1/groups/:groupId/leave
  * Leave a group.
  */
-router.post('/groups/:groupId/leave', authenticate, validate({ params: (value) => value }), asyncHandler(async () => {
-	throw new NotImplementedError('Group leave');
-}));
+router.post('/groups/:groupId/leave', authenticate, validate({ params: validateGroupParams }), leave);
+
+/**
+ * POST /api/v1/groups/:groupId/members
+ * Add a user to a group.
+ */
+router.post('/groups/:groupId/members', authenticate, validate({ params: validateGroupParams, body: validateAddMemberInput }), addMember);
 
 /**
  * GET /api/v1/groups/:groupId/members

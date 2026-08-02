@@ -1,4 +1,5 @@
 import { AppError, AuthenticationError, AuthorizationError, ValidationError } from '../utils/AppError.js';
+import defaultLogger from '../utils/logger.js';
 
 function normalizeZodError(error) {
 	const issues = error?.issues || [];
@@ -101,6 +102,18 @@ function normalizeError(error) {
 
 export default function errorMiddleware(err, req, res, next) {
 	const normalized = normalizeError(err);
+
+	// Log complete error stack trace to server console for debugging without exposing to client
+	if (normalized.statusCode >= 500) {
+		defaultLogger.error('Unhandled API Error:', {
+			message: err?.message || 'Server Error',
+			stack: err?.stack || err,
+			statusCode: normalized.statusCode,
+			path: req?.originalUrl,
+			method: req?.method,
+		});
+	}
+
 	const payload = {
 		success: false,
 		message: normalized.message,

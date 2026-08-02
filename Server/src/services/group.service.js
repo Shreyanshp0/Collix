@@ -108,7 +108,43 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		return memberships.filter(({ group }) => group);
 	}
 
-	return { addMember, createGroup, getGroupSummary, joinGroup, leaveGroup, listMyGroups, verifyMemberAccess };
+	async function listPublicGroupsToBrowse({ userId, page = 1, limit = 30 }) {
+		const pageNum = Math.max(1, parseInt(page, 10) || 1);
+		const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 30));
+
+		const myMemberships = await GroupMember.find({ user: userId, banned: false })
+			.select('group')
+			.lean();
+		const joinedGroupIds = myMemberships.map((m) => m.group);
+
+		const query = {
+			visibility: 'public',
+			archived: false,
+			_id: { $nin: joinedGroupIds },
+		};
+
+		const [groups, total] = await Promise.all([
+			Group.find(query)
+				.sort({ createdAt: -1 })
+				.skip((pageNum - 1) * limitNum)
+				.limit(limitNum)
+				.lean(),
+			Group.countDocuments(query),
+		]);
+
+		const totalPages = Math.ceil(total / limitNum) || 1;
+
+		return {
+			groups,
+			page: pageNum,
+			limit: limitNum,
+			total,
+			totalPages,
+			hasNextPage: pageNum < totalPages,
+		};
+	}
+
+	return { addMember, createGroup, getGroupSummary, joinGroup, leaveGroup, listMyGroups, listPublicGroupsToBrowse, verifyMemberAccess };
 }
 
 const groupService = createGroupService();

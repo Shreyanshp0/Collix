@@ -2,8 +2,7 @@ import { Router } from 'express';
 import authenticate from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { create as createMessage, list as listMessages, markRead as markMessageRead } from '../controllers/message.controller.js';
-import { validateMessageInput, validatePagination } from '../validators/message.validator.js';
-import asyncHandler from '../utils/asyncHandler.js';
+import { validateGroupMessageParams, validateMessageInput, validateMessageReadParams, validatePagination } from '../validators/message.validator.js';
 
 const router = Router();
 
@@ -14,11 +13,8 @@ const router = Router();
 router.post(
 	'/groups/:groupId/messages',
 	authenticate,
-	validate({ body: validateMessageInput, params: (value) => value }),
-	asyncHandler(async (req, res, next) => {
-		req.params.id = req.params.groupId;
-		return createMessage(req, res, next);
-	})
+	validate({ body: validateMessageInput, params: validateGroupMessageParams }),
+	createMessage
 );
 
 /**
@@ -28,11 +24,8 @@ router.post(
 router.get(
 	'/groups/:groupId/messages',
 	authenticate,
-	validate({ query: validatePagination, params: (value) => value }),
-	asyncHandler(async (req, res, next) => {
-		req.params.id = req.params.groupId;
-		return listMessages(req, res, next);
-	})
+	validate({ query: validatePagination, params: validateGroupMessageParams }),
+	listMessages
 );
 
 /**
@@ -42,11 +35,8 @@ router.get(
 router.patch(
 	'/groups/:groupId/messages/:messageId/read',
 	authenticate,
-	validate({ params: (value) => value }),
-	asyncHandler(async (req, res, next) => {
-		req.params.id = req.params.groupId;
-		return markMessageRead(req, res, next);
-	})
+	validate({ params: validateMessageReadParams }),
+	markMessageRead
 );
 
 export default router;

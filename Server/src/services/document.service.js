@@ -4,9 +4,10 @@ import Group from '../models/Group.js';
 import { AuthorizationError, ConflictError, DependencyError, NotFoundError, ValidationError } from '../utils/AppError.js';
 import { DOCUMENT_PROCESSING_STATUS, DOCUMENT_PROCESSING_STATUS_VALUES } from '../constants/documentStatus.js';
 import { UPLOAD_CONSTANTS } from '../constants/upload.js';
-import storageProvider from '../providers/storage/cloudinary.provider.js';
+import storageProvider from '../providers/storage/storage.provider.js';
 import { toDocumentDto } from '../mappers/document.mapper.js';
 import { GROUP_ROLES } from '../constants/roles.js';
+import defaultLogger, { assertLogger } from '../utils/logger.js';
 
 function getId(value) {
 	return value?.toString?.() || value?._id?.toString?.() || value;
@@ -39,7 +40,9 @@ async function ensureGroupAccess({ userId, groupId }) {
 	return { group, membership };
 }
 
-export function createDocumentService({ provider = storageProvider } = {}) {
+export function createDocumentService({ provider = storageProvider, logger = defaultLogger } = {}) {
+	assertLogger(logger);
+
 	async function uploadDocument({ userId, groupId, files }) {
 		if (!Array.isArray(files) || files.length === 0) {
 			throw new ValidationError('At least one document is required');
@@ -71,34 +74,60 @@ export function createDocumentService({ provider = storageProvider } = {}) {
 				throw new ValidationError(`File size exceeds the maximum of ${UPLOAD_CONSTANTS.MAX_FILE_SIZE_BYTES} bytes`);
 			}
 
-			const storageResult = await provider.uploadFile(file, { folder: `collix/groups/${groupId}` });
-			const document = await Document.create({
-				group: groupId,
-				uploadedBy: userId,
-				name: file.originalname,
-				originalName: file.originalname,
-				mimeType,
+			logger.info('Document upload started', {
+				groupId: groupId.toString(),
+				userId: userId.toString(),
+				filename: file.originalname,
 				size: file.size,
-				storage: {
-					provider: storageResult.provider,
-					key: storageResult.key,
-					url: storageResult.url,
-					bucket: storageResult.bucket,
-				},
-				processingStatus: DOCUMENT_PROCESSING_STATUS.UPLOADED,
-				metadata: {
-					...buildDocumentMetadata(file),
-					processingError: null,
-					vectorized: false,
-					indexedAt: null,
-					vectorizedAt: null,
-					embeddingVersion: null,
-					chunkCount: 0,
-				},
-				version: 1,
 			});
 
-			createdDocs.push(document);
+			try {
+				const storageResult = await provider.uploadFile(file, { folder: `collix/groups/${groupId}` });
+				const document = await Document.create({
+					group: groupId,
+					uploadedBy: userId,
+					name: file.originalname,
+					originalName: file.originalname,
+					mimeType,
+					size: file.size,
+					storage: {
+						provider: storageResult.provider,
+						key: storageResult.key,
+						url: storageResult.url,
+						bucket: storageResult.bucket,
+					},
+					processingStatus: DOCUMENT_PROCESSING_STATUS.UPLOADED,
+					metadata: {
+						...buildDocumentMetadata(file),
+						processingError: null,
+						vectorized: false,
+						indexedAt: null,
+						vectorizedAt: null,
+						embeddingVersion: null,
+						chunkCount: 0,
+					},
+					version: 1,
+				});
+
+				await document.populate('uploadedBy', 'name username avatar');
+
+				logger.info('Document upload completed', {
+					groupId: groupId.toString(),
+					userId: userId.toString(),
+					filename: file.originalname,
+					documentId: document._id.toString(),
+				});
+
+				createdDocs.push(document);
+			} catch (uploadErr) {
+				logger.error('Document upload failed', {
+					groupId: groupId.toString(),
+					userId: userId.toString(),
+					filename: file.originalname,
+					error: uploadErr?.message || uploadErr,
+				});
+				throw uploadErr;
+			}
 		}
 
 		return createdDocs.map((document) => toDocumentDto(document));
@@ -106,12 +135,17 @@ export function createDocumentService({ provider = storageProvider } = {}) {
 
 	async function listDocuments({ userId, groupId }) {
 		await ensureGroupAccess({ userId, groupId });
-		const documents = await Document.find({ group: groupId }).sort({ uploadedAt: -1 }).lean();
+		const documents = await Document.find({ group: groupId })
+			.populate('uploadedBy', 'name username avatar')
+			.sort({ uploadedAt: -1 })
+			.lean();
 		return documents.map((document) => toDocumentDto(document));
 	}
 
 	async function getDocument({ userId, documentId }) {
-		const document = await Document.findById(documentId).lean();
+		const document = await Document.findById(documentId)
+			.populate('uploadedBy', 'name username avatar')
+			.lean();
 		if (!document) {
 			throw new NotFoundError('Document');
 		}
@@ -124,49 +158,30 @@ export function createDocumentService({ provider = storageProvider } = {}) {
 		if (!document) {
 			throw new NotFoundError('Document');
 		}
-		await ensureGroupAccess({ userId, groupId: document.group });
+
+		const { membership } = await ensureGroupAccess({ userId, groupId: document.group });
+		const isUploader = getId(document.uploadedBy) === getId(userId);
+		const canDelete = isUploader || [GROUP_ROLES.OWNER, GROUP_ROLES.ADMIN].includes(membership.role);
+
+		if (!canDelete) {
+			throw new AuthorizationError('You do not have permission to delete this document');
+		}
 
 		if (document.storage?.key) {
-			await provider.deleteFile(document.storage);
+			try {
+				await provider.deleteFile(document.storage);
+			} catch (error) {
+				logger.error('Failed to delete document from storage provider', { error, documentId, key: document.storage.key });
+			}
 		}
 
-		document.processingStatus = DOCUMENT_PROCESSING_STATUS.FAILED;
-		document.metadata = {
-			...(document.metadata || {}),
-			processingError: 'Document deleted',
-		};
-		document.deletedAt = new Date();
-		await document.save();
-
-		return toDocumentDto(document);
+		await Document.deleteOne({ _id: documentId });
+		return { success: true };
 	}
 
-	async function updateProcessingStatus({ documentId, status, error }) {
-		if (!DOCUMENT_PROCESSING_STATUS_VALUES.includes(status)) {
-			throw new ValidationError('Unsupported processing status');
-		}
-
-		const document = await Document.findById(documentId);
-		if (!document) {
-			throw new NotFoundError('Document');
-		}
-
-		const update = { processingStatus: status };
-		if (error) {
-			update.metadata = {
-				...(document.metadata || {}),
-				processingError: error,
-			};
-		}
-
-		await Document.updateOne({ _id: documentId }, { $set: update });
-		return true;
-	}
-
-	return { deleteDocument, getDocument, listDocuments, updateProcessingStatus, uploadDocument };
+	return { deleteDocument, getDocument, listDocuments, uploadDocument };
 }
 
 const documentService = createDocumentService();
-
-export const { deleteDocument, getDocument, listDocuments, updateProcessingStatus, uploadDocument } = documentService;
+export const { deleteDocument, getDocument, listDocuments, uploadDocument } = documentService;
 export default documentService;

@@ -1,6 +1,7 @@
 import { MAX_MESSAGE_LENGTH, MESSAGE_TYPE_VALUES, TEXT_REQUIRED_MESSAGE_TYPES } from '../constants/messageTypes.js';
 import { MAX_PAGE_SIZE } from '../constants/pagination.js';
 import { ValidationError } from '../utils/AppError.js';
+import { validateSocketObjectId } from './socket.validator.js';
 
 export function validateMessageInput({ message = '', type = 'text', attachments = [] }) {
 	if (!MESSAGE_TYPE_VALUES.includes(type)) throw new ValidationError('Unsupported message type');
@@ -27,4 +28,17 @@ export function validateMessageQuery(query = {}) {
 	if (query && typeof query !== 'object') {
 		throw new ValidationError('Query must be an object');
 	}
+}
+
+export function validateGroupMessageParams(params = {}) {
+	if (!params || typeof params !== 'object') {
+		throw new ValidationError('Request parameters must be an object');
+	}
+
+	return { groupId: validateSocketObjectId(params.groupId, 'Group ID') };
+}
+
+export function validateMessageReadParams(params = {}) {
+	const { groupId } = validateGroupMessageParams(params);
+	return { groupId, messageId: validateSocketObjectId(params.messageId, 'Message ID') };
 }

@@ -1,19 +1,65 @@
 import { SendHorizontal } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import { useLayoutEffect, useRef, useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import useSocket from '../../hooks/useSocket.jsx';
 
 function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
+  const { socket, isConnected } = useSocket();
   const [question, setQuestion] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [uploadProgressMap, setUploadProgressMap] = useState({});
+  const [sending, setSending] = useState(false);
+
+  const isTypingRef = useRef(false);
+  const inactivityTimerRef = useRef(null);
+
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const plusMenuRef = useRef(null);
   const firstMenuItemRef = useRef(null);
   const [plusOpen, setPlusOpen] = useState(false);
 
-  const MIN_TEXTAREA = 24; // px for one line visual
-  const MAX_TEXTAREA = 140; // px approx 4-5 lines
+  const MIN_TEXTAREA = 24;
+  const MAX_TEXTAREA = 140;
+
+  const stopTyping = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      if (socket && isConnected && activeGroupId) {
+        socket.emit('typing:stop', { groupId: activeGroupId });
+      }
+    }
+  }, [socket, isConnected, activeGroupId]);
+
+  const handleInputChange = (event) => {
+    const val = event.target.value;
+    setQuestion(val);
+
+    const trimmed = val.trim();
+    if (!trimmed) {
+      stopTyping();
+      return;
+    }
+
+    // State machine: transition from Idle -> Typing (emit typing:start only once)
+    if (!isTypingRef.current && socket && isConnected && activeGroupId) {
+      isTypingRef.current = true;
+      socket.emit('typing:start', { groupId: activeGroupId });
+    }
+
+    // Reset inactivity timer on keystrokes without re-emitting typing:start
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    inactivityTimerRef.current = setTimeout(() => {
+      stopTyping();
+    }, 3000);
+  };
 
   const addAiMention = () => {
     setQuestion((current) => (current.includes('@AI') ? current : `@AI ${current}`.trim()));
@@ -22,7 +68,6 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
 
   const uploadFiles = (fileList) => {
     const files = Array.from(fileList || []);
-
     if (files.length === 0) return;
 
     files.forEach((file) => {
@@ -30,7 +75,6 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
       setAttachedFiles((c) => [{ id, name: file.name, size: file.size }, ...c]);
       setUploadProgressMap((m) => ({ ...m, [id]: 0 }));
 
-      // Mock progress and indexing
       window.setTimeout(() => setUploadProgressMap((m) => ({ ...m, [id]: 35 })), 120);
       window.setTimeout(() => setUploadProgressMap((m) => ({ ...m, [id]: 72 })), 260);
       window.setTimeout(() => {
@@ -76,21 +120,49 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
   };
 
   const handleSend = () => {
+    stopTyping();
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion && attachedFiles.length === 0) {
-      toast.error('Enter a question or attach a PDF.');
+      toast.error('Enter a message or attach a PDF.');
       return;
     }
 
-    console.log('Ask AI:', trimmedQuestion, attachedFiles);
-    toast.success('Mock AI request captured.');
+    if (!activeGroupId) {
+      toast.error('No active group selected.');
+      return;
+    }
+
+    // Realtime Socket Message Send Flow
+    if (socket && isConnected && !trimmedQuestion.startsWith('@AI') && attachedFiles.length === 0) {
+      setSending(true);
+      socket.emit(
+        'message:send',
+        {
+          groupId: activeGroupId,
+          message: trimmedQuestion,
+          type: 'text',
+        },
+        (response) => {
+          setSending(false);
+          if (response?.error) {
+            toast.error(response.error.message || 'Failed to send message');
+          } else {
+            setQuestion('');
+          }
+        },
+      );
+      return;
+    }
+
+    // Fallback for AI mention or attachments
+    console.log('Ask AI / Attachments submit:', trimmedQuestion, attachedFiles);
+    toast.success('Message captured.');
     setQuestion('');
     setAttachedFiles([]);
     setUploadProgressMap({});
     setPlusOpen(false);
   };
 
-  // Close plus menu on outside click
   useEffect(() => {
     const onDocClick = (e) => {
       if (plusMenuRef.current && !plusMenuRef.current.contains(e.target)) {
@@ -98,11 +170,12 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
       }
     };
     document.addEventListener('click', onDocClick);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      stopTyping();
+    };
+  }, [stopTyping]);
 
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
-
-  // Focus first menu item when opening for keyboard accessibility
   useEffect(() => {
     if (plusOpen) {
       setTimeout(() => {
@@ -120,7 +193,6 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
         uploadFiles(event.dataTransfer.files);
       }}
     >
-      {/* Attachment chips above composer */}
       {attachedFiles.length > 0 && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {attachedFiles.map((f) => (
@@ -138,9 +210,11 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
         ref={textareaRef}
         rows={1}
         className="w-full resize-none overflow-hidden bg-transparent px-1 py-1 text-sm leading-6 text-primaryText outline-none placeholder:text-secondaryText"
-        placeholder="Ask team or @AI anything..."
+        placeholder="Type a message or @AI..."
         value={question}
-        onChange={(event) => setQuestion(event.target.value)}
+        onChange={handleInputChange}
+        onBlur={stopTyping}
+        disabled={sending}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -155,14 +229,8 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
             type="button"
             aria-expanded={plusOpen}
             onClick={() => setPlusOpen((s) => !s)}
-            className="flex h-10 w-10 items-center justify-center border-2 border-border bg-background text-primaryText"
+            className="flex h-10 w-10 items-center justify-center border-2 border-border bg-background text-primaryText font-bold"
             title="Quick actions"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setPlusOpen((s) => !s);
-              }
-            }}
           >
             +
           </button>
@@ -172,7 +240,7 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
               <button
                 ref={firstMenuItemRef}
                 type="button"
-                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText"
+                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText hover:bg-white/5"
                 onClick={() => {
                   fileInputRef.current?.click();
                   setPlusOpen(false);
@@ -182,7 +250,7 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
               </button>
               <button
                 type="button"
-                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText"
+                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText hover:bg-white/5"
                 onClick={() => {
                   onOpenDocuments?.();
                   setPlusOpen(false);
@@ -192,46 +260,36 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
               </button>
               <button
                 type="button"
-                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText"
+                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText hover:bg-white/5"
                 onClick={() => {
                   addAiMention();
                 }}
               >
                 Mention AI
               </button>
-              <button
-                type="button"
-                className="block w-full text-left px-2 py-2 text-sm font-black uppercase tracking-[0.12em] text-primaryText"
-                onClick={() => {
-                  setPlusOpen(false);
-                  // Simulate asking group AI by sending current question
-                  handleSend();
-                }}
-              >
-                Ask Group AI
-              </button>
             </div>
           )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md"
+            multiple
+            className="hidden"
+            onChange={handleAttachPdf}
+          />
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 border-2 border-aiPurple bg-aiPurple px-3 h-10 text-sm font-black uppercase tracking-[0.12em] text-primaryText shadow-ai"
-            onClick={handleSend}
-            style={{ height: '40px' }}
-          >
-            Send
-            <SendHorizontal className="h-4 w-4" strokeWidth={2.25} />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={sending}
+          className="brutal-button flex items-center gap-2"
+        >
+          <span>{sending ? 'Sending...' : 'Send'}</span>
+          <SendHorizontal className="h-4 w-4" strokeWidth={2.25} />
+        </button>
       </div>
-
-      <div className="mt-1 flex items-center justify-end">
-        <p className="text-[10px] text-secondaryText">Shift + Enter for new line</p>
-      </div>
-
-      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleAttachPdf} />
     </section>
   );
 }
