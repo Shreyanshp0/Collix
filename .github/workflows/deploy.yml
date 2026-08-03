@@ -49,10 +49,15 @@ jobs:
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       - name: Create Deployment Directory
+        env:
+          EC2_USER: ${{ secrets.EC2_USERNAME }}
         run: |
           ssh -i ~/.ssh/collix.pem \
-            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-            "sudo mkdir -p /opt/collix && sudo chown -R $USER:$USER /opt/collix"
+            ${EC2_USER}@${{ secrets.EC2_HOST }} \
+            "
+            sudo mkdir -p /opt/collix
+            sudo chown -R ${EC2_USER}:${EC2_USER} /opt/collix
+            "
 
       - name: Copy docker-compose
         run: |
