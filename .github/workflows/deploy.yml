@@ -12,10 +12,11 @@ permissions:
 jobs:
   deploy:
     name: Deploy to AWS EC2 and verify health
-    if: >-
+    if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Tested Commit
         uses: actions/checkout@v4
@@ -24,8 +25,7 @@ jobs:
 
       - name: Generate .env.server
         run: |
-          umask 077
-          cat << 'EOF' > .env.server
+          cat > .env.server <<EOF
           NODE_ENV=production
           PORT=5000
           MONGODB_URI=${{ secrets.MONGODB_URI }}
@@ -40,6 +40,11 @@ jobs:
           IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
           EOF
 
+          chmod 644 .env.server
+
+          echo "Generated .env.server"
+          ls -l .env.server
+
       - name: Ensure Target Directory on EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -50,17 +55,21 @@ jobs:
             sudo mkdir -p /opt/collix
             sudo chown -R $USER:$USER /opt/collix
 
-      - name: Copy Deployment Files to EC2 (/opt/collix)
+      - name: Copy Deployment Files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           target: /opt/collix
-          source: "docker-compose.prod.yml,docker/,scripts/,.env.server"
-          rm: false
+          overwrite: true
+          source: |
+            docker-compose.prod.yml
+            docker/**
+            scripts/**
+            .env.server
 
-      - name: Execute Deployment & Verify Health on EC2
+      - name: Execute Deployment & Verify Health
         uses: appleboy/ssh-action@v1.2.0
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -72,7 +81,11 @@ jobs:
           envs: DOCKER_USERNAME,IMAGE_TAG
           script: |
             set -euo pipefail
+
             cd /opt/collix
+
             chmod +x scripts/*.sh
+
             ./scripts/deploy.sh
+
             HEALTH_URL=http://localhost/api/v1/health ./scripts/healthcheck.sh
