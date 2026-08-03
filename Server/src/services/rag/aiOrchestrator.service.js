@@ -8,6 +8,7 @@ import { ValidationError } from '../../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../../utils/logger.js';
 import { AI_CONFIG } from '../../config/ai.config.js';
 import { getIO } from '../../socket/index.js';
+import eventBus from '../eventBus.service.js';
 
 /**
  * AI Orchestrator Service
@@ -172,11 +173,16 @@ export function createAiOrchestrator({
 				},
 			});
 
-			// 8. Broadcast Realtime Socket Events
+			// 8. Broadcast Realtime Socket Events & Notifications
 			const io = getIO();
 			if (io) {
 				io.to(groupId).emit('new-message', messageDto);
 			}
+			eventBus.publish('AI_RESPONSE_READY', {
+				groupId,
+				askedBy: userId,
+				messageId: savedMessage._id.toString(),
+			});
 			emitEvent('new-message', messageDto);
 			emitEvent('ai:complete', {
 				message: messageDto,

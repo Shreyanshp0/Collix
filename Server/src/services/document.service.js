@@ -9,6 +9,7 @@ import storageProvider from '../providers/storage/storage.provider.js';
 import { toDocumentDto } from '../mappers/document.mapper.js';
 import { GROUP_ROLES } from '../constants/roles.js';
 import defaultLogger, { assertLogger } from '../utils/logger.js';
+import eventBus from './eventBus.service.js';
 
 function getId(value) {
 	return value?.toString?.() || value?._id?.toString?.() || value;
@@ -117,6 +118,14 @@ export function createDocumentService({ provider = storageProvider, logger = def
 					userId: userId.toString(),
 					filename: file.originalname,
 					documentId: document._id.toString(),
+				});
+
+				eventBus.publish('DOCUMENT_UPLOADED', {
+					documentId: document._id.toString(),
+					groupId: groupId.toString(),
+					uploadedBy: userId.toString(),
+					uploaderName: document.uploadedBy?.name || 'A group member',
+					filename: file.originalname,
 				});
 
 				createdDocs.push(document);

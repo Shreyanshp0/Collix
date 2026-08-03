@@ -31,6 +31,7 @@ export function initializeSocketServer(httpServer, {
 	io.use(createSocketAuthMiddleware({ logger }));
 
 	io.on('connection', (socket) => {
+		socket.join(`user:${socket.user._id.toString()}`);
 		const presenceState = presence.markConnected({ userId: socket.user._id, socketId: socket.id });
 		if (presenceState.becameOnline) io.emit(SOCKET_EVENTS.PRESENCE_UPDATE, { user: toRealtimeUserDto(socket.user), status: presenceState.status });
 		logger.info('Socket connected', { socketId: socket.id, userId: socket.user._id.toString() });

@@ -9,6 +9,7 @@ import { createMetadataStore } from './metadataStore.js';
 import queueProvider from './providers/queue.provider.js';
 import { DOCUMENT_PROCESSING_STATUS } from '../../constants/documentStatus.js';
 import defaultLogger, { assertLogger } from '../../utils/logger.js';
+import eventBus from '../eventBus.service.js';
 
 export function createDocumentProcessor({
 	loader = documentLoader,
@@ -144,6 +145,13 @@ export function createDocumentProcessor({
 				status: document.processingStatus,
 			});
 
+			eventBus.publish('DOCUMENT_READY', {
+				documentId: document._id.toString(),
+				groupId: document.group?.toString(),
+				uploadedBy: document.uploadedBy?.toString(),
+				filename: document.originalName || document.name,
+			});
+
 			return document;
 		} catch (error) {
 			logger.error('Document processing failed', { documentId: document._id.toString(), error: error.message });
@@ -154,6 +162,14 @@ export function createDocumentProcessor({
 				processingError: error.message || 'Knowledge processing failed',
 			};
 			await document.save();
+
+			eventBus.publish('DOCUMENT_FAILED', {
+				documentId: document._id.toString(),
+				groupId: document.group?.toString(),
+				uploadedBy: document.uploadedBy?.toString(),
+				filename: document.originalName || document.name,
+				error: error.message,
+			});
 
 			throw error;
 		}

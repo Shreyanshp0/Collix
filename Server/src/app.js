@@ -5,6 +5,7 @@ import groupRoutes from './routes/group.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import errorMiddleware from './middleware/error.middleware.js';
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/v1', groupRoutes);
 app.use('/api/v1', messageRoutes);
 app.use('/api/v1', documentRoutes);
 app.use('/api/v1', aiRoutes);
+app.use('/api/v1', notificationRoutes);
 
 app.use((req, res) => {
 	res.status(404).json({ success: false, message: 'Route not found' });

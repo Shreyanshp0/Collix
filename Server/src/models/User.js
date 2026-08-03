@@ -44,6 +44,16 @@ const userSchema = new Schema(
 		lastSeen: { type: Date, default: null },
 		isVerified: { type: Boolean, default: false },
 		refreshToken: { type: String, select: false, default: null },
+		notificationPreferences: {
+			browser: { type: Boolean, default: true },
+			categories: {
+				chat: { type: Boolean, default: true },
+				documents: { type: Boolean, default: true },
+				ai: { type: Boolean, default: true },
+				group: { type: Boolean, default: true },
+				system: { type: Boolean, default: true },
+			},
+		},
 	},
 	{
 		timestamps: true,

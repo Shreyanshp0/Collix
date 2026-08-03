@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth.jsx';
 import UserDropdown from './UserDropdown.jsx';
 import CurrentGroupDropdown from './CurrentGroupDropdown.jsx';
+import NotificationBell from '../notifications/NotificationBell.jsx';
 
 function Navbar() {
   const { isAuthenticated } = useAuth();
@@ -44,16 +45,7 @@ function Navbar() {
                 <Activity className="h-4 w-4 text-presenceGreen" strokeWidth={2.25} />
               </div>
 
-              <button
-                type="button"
-                className="relative flex h-10 w-10 items-center justify-center rounded-md border-2 border-border bg-[#0f131b] text-primaryText"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" strokeWidth={2.25} />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-border bg-aiPurple text-[10px] font-black text-primaryText">
-                  3
-                </span>
-              </button>
+              <NotificationBell />
 
               <UserDropdown />
             </>

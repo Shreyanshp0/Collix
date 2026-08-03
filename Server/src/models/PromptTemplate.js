@@ -49,7 +49,6 @@ const promptTemplateSchema = new Schema(
 	{ timestamps: true }
 );
 
-promptTemplateSchema.index({ fingerprint: 1 });
 
 const PromptTemplate = mongoose.models.PromptTemplate || mongoose.model('PromptTemplate', promptTemplateSchema);
 

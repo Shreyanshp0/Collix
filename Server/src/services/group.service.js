@@ -8,6 +8,8 @@ import { GROUP_ROLES } from '../constants/roles.js';
 import { AuthorizationError, ConflictError, NotFoundError } from '../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../utils/logger.js';
 import { validateGroupRole, validateNewGroup } from '../validators/group.validator.js';
+import eventBus from './eventBus.service.js';
+import User from '../models/User.js';
 
 export function createGroupService({ logger = defaultLogger } = {}) {
 	assertLogger(logger);
@@ -96,6 +98,10 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 			},
 			{ new: true }
 		).populate('promptTemplate');
+		eventBus.publish('AI_CONFIGURATION_UPDATED', {
+			groupId: groupId.toString(),
+			actorId: actorId.toString(),
+		});
 		return { group, promptTemplate: template };
 	}
 
@@ -106,7 +112,9 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		if (existing?.banned) throw new AuthorizationError('You are banned from this group');
 		if (existing) return existing;
 		try {
-			return await GroupMember.create({ group: groupId, user: userId });
+			const membership = await GroupMember.create({ group: groupId, user: userId });
+			eventBus.publish('MEMBER_JOINED', { groupId: groupId.toString(), userId: userId.toString(), userName: (await User.findById(userId).select('name username').lean())?.name });
+			return membership;
 		} catch (error) {
 			if (error?.code === 11000) return GroupMember.findOne({ group: groupId, user: userId });
 			throw error;
@@ -122,15 +130,20 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 			existing.banned = false;
 			existing.role = role;
 			existing.joinedAt = new Date();
-			return existing.save();
+			const membership = await existing.save();
+			eventBus.publish('MEMBER_JOINED', { groupId: groupId.toString(), userId: userId.toString(), userName: (await User.findById(userId).select('name username').lean())?.name });
+			return membership;
 		}
-		return GroupMember.create({ group: groupId, user: userId, role });
+		const membership = await GroupMember.create({ group: groupId, user: userId, role });
+		eventBus.publish('MEMBER_JOINED', { groupId: groupId.toString(), userId: userId.toString(), userName: (await User.findById(userId).select('name username').lean())?.name });
+		return membership;
 	}
 
 	async function leaveGroup({ groupId, userId }) {
 		const membership = await requireActiveMembership(groupId, userId);
 		if (membership.role === GROUP_ROLES.OWNER) throw new ConflictError('Transfer group ownership before leaving');
 		await GroupMember.deleteOne({ _id: membership._id });
+		eventBus.publish('MEMBER_LEFT', { groupId: groupId.toString(), userId: userId.toString(), userName: (await User.findById(userId).select('name username').lean())?.name });
 	}
 
 	async function listMembers({ groupId, requesterId }) {

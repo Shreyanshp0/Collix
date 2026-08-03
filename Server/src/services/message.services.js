@@ -4,6 +4,8 @@ import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../constants/pagination.js';
 import { AuthorizationError, NotFoundError } from '../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../utils/logger.js';
 import { validateMessageInput, validatePagination } from '../validators/message.validator.js';
+import eventBus from './eventBus.service.js';
+import User from '../models/User.js';
 
 export function createMessageService({ indexer, logger = defaultLogger } = {}) {
 	assertLogger(logger);
@@ -24,6 +26,15 @@ export function createMessageService({ indexer, logger = defaultLogger } = {}) {
 			if (!parent) throw new NotFoundError('Reply target message');
 		}
 		const savedMessage = await Message.create({ group: groupId, sender: senderId || null, message: message.trim(), type, attachments, replyTo, mentions, aiMetadata });
+		if (senderId && type !== 'ai') {
+			const sender = await User.findById(senderId).select('name username').lean();
+			const payload = { groupId: groupId.toString(), senderId: senderId.toString(), senderName: sender?.name || sender?.username, messageId: savedMessage._id.toString() };
+			eventBus.publish('MESSAGE_SENT', payload);
+			for (const mention of savedMessage.mentions || []) {
+				const mentionedUserId = mention.user?.toString();
+				if (mentionedUserId && mentionedUserId !== senderId.toString()) eventBus.publish('MENTION_CREATED', { ...payload, mentionedUserId });
+			}
+		}
 		if (indexer?.indexMessage) {
 			void Promise.resolve(indexer.indexMessage(savedMessage)).catch((error) => {
 				logger.error('Message indexing dispatch failed', { error, messageId: savedMessage._id.toString() });
