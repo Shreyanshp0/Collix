@@ -9,7 +9,12 @@ export function connectSocket(token) {
     return null;
   }
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+  const socketUrl = import.meta.env.VITE_SOCKET_URL;
+
+  if (!socketUrl) {
+    console.error('VITE_SOCKET_URL is required to establish a realtime connection.');
+    return null;
+  }
 
   // Tab-level singleton: reuse active connection if token matches
   if (socket && (socket.connected || socket.active) && currentToken === token) {

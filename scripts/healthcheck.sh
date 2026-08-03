@@ -1,3 +1,3 @@
 #!/bin/bash
 
-curl http://localhost/api/health
+curl --fail --silent --show-error http://localhost/api/v1/health

@@ -1,5 +1,5 @@
 #!/bin/bash
 
-docker compose down
+docker compose -f docker-compose.prod.yml down
 
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d --build

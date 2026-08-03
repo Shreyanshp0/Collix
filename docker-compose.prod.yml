@@ -1,0 +1,63 @@
+name: collix
+
+services:
+  client:
+    build:
+      context: ./Client
+      target: builder
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:?Set VITE_SOCKET_URL to the public Nginx origin}
+    command: ["sh", "-c", "cp -a /app/dist/. /output/ && tail -f /dev/null"]
+    volumes:
+      - frontend-build:/output
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /output/index.html"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - collix-network
+
+  server:
+    build:
+      context: ./Server
+    env_file:
+      - ./Server/.env.production
+    expose:
+      - "5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5000/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - collix-network
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      client:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - frontend-build:/usr/share/nginx/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    networks:
+      - collix-network
+
+volumes:
+  frontend-build:
+
+networks:
+  collix-network:
+    driver: bridge
