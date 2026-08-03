@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy to AWS EC2 and verify health
+    name: Deploy to AWS EC2
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
@@ -40,52 +40,59 @@ jobs:
           IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
           EOF
 
-          chmod 644 .env.server
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/collix.pem
+          chmod 600 ~/.ssh/collix.pem
 
-          echo "Generated .env.server"
-          ls -l .env.server
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Ensure Target Directory on EC2
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo mkdir -p /opt/collix
-            sudo chown -R $USER:$USER /opt/collix
+      - name: Create Deployment Directory
+        run: |
+          ssh -i ~/.ssh/collix.pem \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+            "sudo mkdir -p /opt/collix && sudo chown -R $USER:$USER /opt/collix"
 
-      - name: Copy Deployment Files to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          target: /opt/collix
-          overwrite: true
-          source: |
-            docker-compose.prod.yml
-            docker/**
-            scripts/**
-            .env.server
+      - name: Copy docker-compose
+        run: |
+          scp -i ~/.ssh/collix.pem \
+            docker-compose.prod.yml \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/opt/collix/
 
-      - name: Execute Deployment & Verify Health
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DOCKER_USERNAME,IMAGE_TAG
-          script: |
-            set -euo pipefail
+      - name: Copy nginx configs
+        run: |
+          scp -i ~/.ssh/collix.pem -r \
+            docker \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/opt/collix/
 
-            cd /opt/collix
+      - name: Copy scripts
+        run: |
+          scp -i ~/.ssh/collix.pem -r \
+            scripts \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/opt/collix/
 
-            chmod +x scripts/*.sh
+      - name: Copy environment
+        run: |
+          scp -i ~/.ssh/collix.pem \
+            .env.server \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:/opt/collix/
 
-            ./scripts/deploy.sh
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/collix.pem \
+            ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} <<EOF
 
-            HEALTH_URL=http://localhost/api/v1/health ./scripts/healthcheck.sh
+          export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          export IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
+
+          cd /opt/collix
+
+          chmod +x scripts/*.sh
+
+          ./scripts/deploy.sh
+
+          HEALTH_URL=http://localhost/api/v1/health \
+          ./scripts/healthcheck.sh
+
+          EOF
