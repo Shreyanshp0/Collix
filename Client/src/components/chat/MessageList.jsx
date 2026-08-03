@@ -7,6 +7,8 @@ import ReadReceipt from './ReadReceipt.jsx';
 
 const BOTTOM_THRESHOLD = 100; // px threshold for smart scroll
 
+import AIMessage from './AIMessage.jsx';
+
 function formatTime(isoString) {
   if (!isoString) return '';
   try {
@@ -219,42 +221,22 @@ function MessageList({
               {messages.map((item) => {
                 const authorId = item.author?.id || item.author?._id;
                 const authorName = item.author?.name || item.author?.username || 'User';
-                const isAI = item.meta?.type === 'ai' || item.author?.type === 'ai';
+                const isAI =
+                  item.type === 'ai' ||
+                  item.meta?.type === 'ai' ||
+                  item.meta?.ai ||
+                  item.author?.type === 'ai' ||
+                  item.author?.name === 'Nexus AI' ||
+                  item.author?.name === 'Collix AI';
                 const isOwnMessage = Boolean(currentUserId && authorId === currentUserId);
 
                 if (isAI) {
                   return (
-                    <div key={item.id} data-message-id={item.id} className="ml-2 border-2 border-aiPurple bg-[#12101b] p-3 shadow-ai">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-aiPurple bg-background text-aiPurple font-bold">
-                            ✦
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-black uppercase tracking-[0.12em] text-aiPurple">
-                              {item.author?.name || 'Collix AI'}
-                            </p>
-                            <span className="border border-aiPurple px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-aiPurple">
-                              RAG Grounded
-                            </span>
-                          </div>
-                        </div>
-                        <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
-                          {formatTime(item.ts)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-primaryText">{item.message}</p>
-                      {item.meta?.sources && item.meta.sources.length > 0 && (
-                        <div className="mt-2 flex flex-wrap items-center gap-2 border border-aiPurple px-2 py-1 text-xs font-bold text-secondaryText">
-                          <span className="text-aiPurple">Sources:</span>
-                          {item.meta.sources.map((src, idx) => (
-                            <span key={idx} className="uppercase tracking-[0.16em] text-primaryText">
-                              {src.filename || src.title || 'Doc'}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <AIMessage
+                      key={item.id || item._id}
+                      messageItem={item}
+                      documents={documents}
+                    />
                   );
                 }
 

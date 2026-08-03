@@ -21,13 +21,16 @@ export function toMessageDto(message, { author } = {}) {
 		deleted: Boolean(message.deleted),
 	};
 	if (message.aiMetadata?.sources) metadata.sources = message.aiMetadata.sources;
+	if (message.aiMetadata?.citations) metadata.citations = message.aiMetadata.citations;
+	if (message.aiMetadata?.confidence) metadata.confidence = message.aiMetadata.confidence;
 	if (message.aiMetadata?.promptVersion) metadata.promptVersion = message.aiMetadata.promptVersion;
+	if (message.aiMetadata?.ai) metadata.ai = true;
 
 	let authorDto;
 	if (message.type === 'ai') {
 		authorDto = {
 			id: 'ai',
-			name: message.aiMetadata?.displayName || author?.name || 'Collix AI',
+			name: message.aiMetadata?.displayName || author?.name || 'Nexus AI',
 			type: 'ai',
 			provider: message.aiMetadata?.provider || 'groq',
 			model: message.aiMetadata?.model || 'llama-3.1-8b-instant',

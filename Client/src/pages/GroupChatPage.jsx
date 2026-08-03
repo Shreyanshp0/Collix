@@ -52,6 +52,7 @@ function GroupChatPage() {
       console.error('AI Q&A Error:', err);
       const message = err.response?.data?.message || err.message || 'Failed to process AI question';
       setAiError(message);
+      toast.error(message);
     } finally {
       setAiLoading(false);
     }
@@ -358,10 +359,16 @@ function GroupChatPage() {
               </div>
             )}
 
-            <div className="shrink-0 space-y-2 px-3 pb-2">
-              {(aiLoading || aiError || aiResponse) && (
-                <AIResponse response={aiResponse} loading={aiLoading} error={aiError} documents={documents} />
-              )}
+            {aiLoading && (
+              <div className="shrink-0 px-3 pb-1">
+                <div className="flex items-center gap-2 rounded-sm border border-aiPurple/50 bg-[#12101b] px-3 py-1.5 text-xs text-aiPurple font-bold">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-aiPurple border-t-transparent" />
+                  <span>🤖 Nexus AI is analyzing knowledge base & writing answer...</span>
+                </div>
+              </div>
+            )}
+
+            <div className="shrink-0 px-3 pb-2">
               <AskAIBox
                 onAddDocuments={handleAddDocuments}
                 onOpenDocuments={() => setIsDocumentsModalOpen(true)}

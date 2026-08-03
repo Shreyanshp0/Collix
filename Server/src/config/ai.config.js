@@ -20,7 +20,7 @@ export const AI_CONFIG = Object.freeze({
 
 	// Identity & Metadata
 	identity: Object.freeze({
-		displayName: 'Collix AI',
+		displayName: 'Nexus AI',
 		type: 'ai',
 	}),
 

@@ -48,7 +48,7 @@ const aiMetadataSchema = new Schema(
 		model: { type: String, trim: true },
 		sources: { type: [Schema.Types.Mixed], default: [] },
 		retrievedChunks: { type: [Schema.Types.Mixed], default: [] },
-		confidence: { type: Number, min: 0, max: 1 },
+		confidence: { type: Schema.Types.Mixed },
 		processingTime: { type: Number, min: 0 },
 	},
 	{ _id: false, strict: false }

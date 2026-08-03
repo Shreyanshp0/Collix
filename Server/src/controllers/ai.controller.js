@@ -22,6 +22,7 @@ export const askAi = asyncHandler(async (req, res) => {
 	return success(res, {
 		message: 'AI query processed successfully',
 		data: {
+			message: result.message,
 			answer: result.answer,
 			confidence: result.confidence,
 			sources: result.sources,

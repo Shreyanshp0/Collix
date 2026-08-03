@@ -139,15 +139,40 @@ export function createAiOrchestrator({
 			const aiMetadata = {
 				provider: llmResponse.provider || options.provider || AI_CONFIG.provider,
 				model: llmResponse.model || options.model || AI_CONFIG.model,
-				displayName: options.assistantName || AI_CONFIG.identity.displayName,
+				displayName: options.assistantName || AI_CONFIG.identity.displayName || 'Nexus AI',
 				promptVersion,
 				confidence,
+				citations: semanticResult.citations,
 				sources: semanticResult.citations,
+				ai: true,
 				processingTime,
 				usage: llmResponse.usage || null,
 			};
 
+			// 7. Persist AI Message to MongoDB
+			const savedMessage = await messages.createMessage({
+				groupId,
+				senderId: null,
+				message: llmResponse.text,
+				type: 'ai',
+				aiMetadata,
+			});
+
+			const messageDto = toMessageDto(savedMessage, {
+				author: {
+					id: 'nexus_ai',
+					_id: 'nexus_ai',
+					name: 'Nexus AI',
+					username: 'nexus_ai',
+					type: 'ai',
+					status: 'online',
+				},
+			});
+
+			// 8. Broadcast Realtime Socket Events
+			emitEvent('new-message', messageDto);
 			emitEvent('ai:complete', {
+				message: messageDto,
 				answer: llmResponse.text,
 				confidence,
 				sources: semanticResult.citations,
@@ -155,6 +180,7 @@ export function createAiOrchestrator({
 			});
 
 			return {
+				message: messageDto,
 				answer: llmResponse.text,
 				confidence,
 				sources: semanticResult.citations,
