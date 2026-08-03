@@ -87,7 +87,7 @@ export default function NotificationDrawer({
             <div className="flex h-48 flex-col items-center justify-center gap-2 text-center text-secondaryText">
               <Bell className="h-8 w-8 opacity-40" />
               <p className="text-xs font-bold uppercase tracking-[0.1em]">No notifications</p>
-              <p className="text-[11px]">You're all caught up!</p>
+              <p className="text-[11px]">You&apos;re all caught up!</p>
             </div>
           ) : (
             notifications.map((notification) => (

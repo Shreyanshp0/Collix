@@ -32,7 +32,7 @@ export default function NotificationItem({ notification, onMarkRead, onDelete, o
     try {
       const d = new Date(iso);
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
+    } catch {
       return '';
     }
   };

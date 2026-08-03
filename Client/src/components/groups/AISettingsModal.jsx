@@ -1,5 +1,5 @@
-import { Bot, RefreshCw, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Bot, Save } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import groupsApi from '../../api/groups.api.js';
 import Modal from '../shared/Modal.jsx';
@@ -11,7 +11,7 @@ export default function AISettingsModal({ isOpen, onClose, groupId }) {
   const [aiConfig, setAiConfig] = useState(null);
   const [promptTemplate, setPromptTemplate] = useState(null);
 
-  const fetchAIConfig = async () => {
+  const fetchAIConfig = useCallback(async () => {
     if (!groupId) return;
     setLoading(true);
     try {
@@ -25,13 +25,13 @@ export default function AISettingsModal({ isOpen, onClose, groupId }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId]);
 
   useEffect(() => {
     if (isOpen && groupId) {
       fetchAIConfig();
     }
-  }, [isOpen, groupId]);
+  }, [isOpen, groupId, fetchAIConfig]);
 
   const handleSaveConfig = async () => {
     if (!groupId || !aiConfig) return;

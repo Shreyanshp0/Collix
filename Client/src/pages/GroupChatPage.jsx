@@ -8,7 +8,6 @@ import groupsApi from '../api/groups.api.js';
 import useAuth from '../hooks/useAuth.jsx';
 import useMessages from '../hooks/useMessages.jsx';
 import useSocket from '../hooks/useSocket.jsx';
-import AIResponse from '../components/ai/AIResponse.jsx';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import TypingIndicator from '../components/chat/TypingIndicator.jsx';
@@ -31,9 +30,7 @@ function GroupChatPage() {
   const [typingUsers, setTypingUsers] = useState([]);
   const safetyTimeoutRef = useRef(null);
 
-  const [aiResponse, setAiResponse] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(null);
 
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -42,7 +39,6 @@ function GroupChatPage() {
   const handleAskAi = async (questionText) => {
     if (!groupId || !questionText) return;
     setAiLoading(true);
-    setAiError(null);
 
     try {
       const data = await aiApi.ask({ groupId, question: questionText });
@@ -52,7 +48,6 @@ function GroupChatPage() {
     } catch (err) {
       console.error('AI Q&A Error:', err);
       const message = err.response?.data?.message || err.message || 'Failed to process AI question';
-      setAiError(message);
       toast.error(message);
     } finally {
       setAiLoading(false);
@@ -275,7 +270,7 @@ function GroupChatPage() {
     };
   }, [socket, isConnected, groupId, messages, updateMessage]);
 
-  const fetchGroupDetails = async () => {
+  const fetchGroupDetails = useCallback(async () => {
     if (!groupId) return;
     try {
       setLoading(true);
@@ -289,11 +284,11 @@ function GroupChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [groupId]);
 
   useEffect(() => {
     fetchGroupDetails();
-  }, [groupId]);
+  }, [fetchGroupDetails]);
 
   const gridColsClass = detailsCollapsed
     ? 'xl:grid-cols-[64px_minmax(0,1fr)_minmax(260px,18%)]'

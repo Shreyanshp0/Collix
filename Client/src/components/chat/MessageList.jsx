@@ -15,7 +15,7 @@ function formatTime(isoString) {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return isoString;
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch (e) {
+  } catch {
     return isoString;
   }
 }
@@ -63,7 +63,7 @@ function MessageList({
     previousCountRef.current = messages.length;
     pendingReadSetRef.current.clear();
     setNewMessageCount(0);
-  }, [activeGroupKey]);
+  }, [activeGroupKey, messages.length]);
 
   // One-time auto-scroll to bottom after initial message history load
   useLayoutEffect(() => {

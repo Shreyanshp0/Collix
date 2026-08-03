@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 
 const DOMAINS = [

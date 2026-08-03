@@ -16,7 +16,7 @@ function formatTime(isoString) {
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return isoString;
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch (e) {
+  } catch {
     return isoString;
   }
 }

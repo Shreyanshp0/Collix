@@ -33,7 +33,7 @@ function formatDate(isoString) {
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return isoString;
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch (e) {
+  } catch {
     return isoString;
   }
 }

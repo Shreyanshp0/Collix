@@ -11,7 +11,6 @@ export default function GroupDetailsPanel({
   activeGroupId,
   group,
   onCollapse,
-  loading = false,
   documents = [],
   members = [],
   onDeleteDocument,
@@ -33,7 +32,7 @@ export default function GroupDetailsPanel({
     try {
       const d = new Date(iso);
       return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-    } catch (e) {
+    } catch {
       return iso || 'Unknown';
     }
   };

@@ -1,4 +1,4 @@
-import { Activity, Bell } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth.jsx';
 import UserDropdown from './UserDropdown.jsx';
