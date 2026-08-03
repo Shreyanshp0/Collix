@@ -2,12 +2,7 @@ name: collix
 
 services:
   client:
-    build:
-      context: ./Client
-      target: builder
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api/v1}
-        VITE_SOCKET_URL: ${VITE_SOCKET_URL:?Set VITE_SOCKET_URL to the public Nginx origin}
+    image: ${DOCKER_USERNAME:?Set DOCKER_USERNAME}/collix-client:${IMAGE_TAG:-latest}
     command: ["sh", "-c", "cp -a /app/dist/. /output/ && tail -f /dev/null"]
     volumes:
       - frontend-build:/output
@@ -21,10 +16,9 @@ services:
       - collix-network
 
   server:
-    build:
-      context: ./Server
+    image: ${DOCKER_USERNAME:?Set DOCKER_USERNAME}/collix-server:${IMAGE_TAG:-latest}
     env_file:
-      - ./Server/.env.production
+      - ./.env.server
     expose:
       - "5000"
     restart: unless-stopped

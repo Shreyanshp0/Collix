@@ -1,7 +1,7 @@
 #!/bin/bash
 
-docker image prune -a -f
+set -euo pipefail
 
+docker image prune -f
 docker container prune -f
-
-docker volume prune -f
+docker builder prune -f

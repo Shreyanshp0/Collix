@@ -16,6 +16,8 @@ ENV VITE_SOCKET_URL=${VITE_SOCKET_URL}
 
 RUN npm run build
 
+FROM builder AS assets
+
 # ---------- Production Stage ----------
 FROM nginx:1.27-alpine
 

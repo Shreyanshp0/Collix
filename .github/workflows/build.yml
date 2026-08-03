@@ -1,0 +1,107 @@
+name: Build and Publish
+
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    name: Build and Publish Docker Images
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Tested Commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            Client/package-lock.json
+            Server/package-lock.json
+
+      - name: Install & Build Client
+        working-directory: Client
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_SOCKET_URL: ${{ secrets.CLIENT_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Validate Server
+        working-directory: Server
+        run: |
+          npm ci
+          node --check server.js
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      #################################################################
+      # Client Image
+      #################################################################
+
+      - name: Build & Push Client Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Client
+          push: true
+          provenance: false
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_SOCKET_URL=${{ secrets.CLIENT_URL }}
+
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/collix-client:latest
+            ${{ secrets.DOCKER_USERNAME }}/collix-client:${{ github.event.workflow_run.head_sha }}
+
+      #################################################################
+      # Server Image
+      #################################################################
+
+      - name: Build & Push Server Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./Server
+          push: true
+          provenance: false
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/collix-server:latest
+            ${{ secrets.DOCKER_USERNAME }}/collix-server:${{ github.event.workflow_run.head_sha }}
+
+      - name: Build Summary
+        run: |
+          echo "✅ Client image pushed:"
+          echo "${{ secrets.DOCKER_USERNAME }}/collix-client:latest"
+          echo "${{ secrets.DOCKER_USERNAME }}/collix-client:${{ github.event.workflow_run.head_sha }}"
+          echo ""
+          echo "✅ Server image pushed:"
+          echo "${{ secrets.DOCKER_USERNAME }}/collix-server:latest"
+          echo "${{ secrets.DOCKER_USERNAME }}/collix-server:${{ github.event.workflow_run.head_sha }}"
