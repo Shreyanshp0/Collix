@@ -1,4 +1,4 @@
-import { AlertCircle, FileText, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertCircle, Download, ExternalLink, FileText, RefreshCw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import LoadingSpinner from '../common/LoadingSpinner.jsx';
 
@@ -49,13 +49,45 @@ function DocumentList({
 
   const handleDelete = async (doc) => {
     if (!doc || !doc.id) return;
+    if (!onDeleteDocument) return;
     if (!window.confirm(`Are you sure you want to delete "${doc.name}"?`)) return;
 
     setDeletingId(doc.id);
     try {
-      await onDeleteDocument?.(doc.id);
+      await onDeleteDocument(doc.id);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    const fileUrl = doc.storage?.url || doc.url;
+    if (!fileUrl) return;
+
+    const fileName = doc.originalName || doc.name || 'document';
+
+    try {
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error('Fetch failed');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Blob download failed, falling back to direct link download:', err);
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.target = '_blank';
+      link.download = fileName;
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -96,7 +128,7 @@ function DocumentList({
           No documents uploaded yet
         </h4>
         <p className="mt-1 max-w-sm text-xs leading-5 text-secondaryText">
-          Upload PDFs, DOCX, TXT or Markdown files to make them searchable by team collaboration spaces.
+          Upload PDFs, DOCX, TXT or Markdown files to make them available in the shared workspace library.
         </p>
       </div>
     );
@@ -106,18 +138,19 @@ function DocumentList({
     <div className="space-y-3">
       {documents.map((doc) => {
         const uploaderName =
-          doc.uploadedBy?.name || doc.uploadedBy?.username || doc.uploadedBy || 'User';
+          doc.uploadedBy?.name || doc.uploadedBy?.username || (typeof doc.uploadedBy === 'string' ? doc.uploadedBy : 'User');
         const rawStatus = (doc.status || doc.processingStatus || 'uploaded').toLowerCase();
         const badgeClass = statusBadgeClasses[rawStatus] || statusBadgeClasses.uploaded;
         const fileTypeLabel = formatType(doc.mimeType, doc.name);
         const formattedSize = formatSize(doc.size);
+        const fileUrl = doc.storage?.url || doc.url;
 
         return (
           <div key={doc.id} className="border-2 border-border bg-[#0f131b] px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-black uppercase tracking-[0.08em] text-primaryText truncate">
+                  <p className="text-sm font-black uppercase tracking-[0.08em] text-primaryText truncate" title={doc.name}>
                     {doc.name}
                   </p>
                   <span className="rounded-sm border border-border bg-background px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-secondaryText">
@@ -129,24 +162,51 @@ function DocumentList({
                 </div>
 
                 <p className="mt-1 text-xs uppercase tracking-[0.14em] text-secondaryText">
-                  {uploaderName} • {formatDate(doc.uploadedAt)}
+                  Uploaded by {uploaderName} • {formatDate(doc.uploadedAt)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <span className={`rounded-sm border px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${badgeClass}`}>
                   {rawStatus}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={() => handleDelete(doc)}
-                  disabled={deletingId === doc.id}
-                  className="flex h-8 w-8 items-center justify-center rounded-sm border-2 border-border bg-background text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                  title="Delete document"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
-                </button>
+                {fileUrl && (
+                  <>
+                    <a
+                      href={fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-sm border-2 border-border bg-background px-2.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-primaryText hover:bg-groupBlue/10 hover:border-groupBlue hover:text-groupBlue transition-colors"
+                      title="Open document in new tab"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" strokeWidth={2.25} />
+                      <span>Open</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(doc)}
+                      className="flex items-center gap-1.5 rounded-sm border-2 border-border bg-background px-2.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-primaryText hover:bg-presenceGreen/10 hover:border-presenceGreen hover:text-presenceGreen transition-colors"
+                      title="Download document"
+                    >
+                      <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
+                      <span>Download</span>
+                    </button>
+                  </>
+                )}
+
+                {onDeleteDocument && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(doc)}
+                    disabled={deletingId === doc.id}
+                    className="flex h-8 w-8 items-center justify-center rounded-sm border-2 border-border bg-background text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                    title="Delete document"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -157,3 +217,4 @@ function DocumentList({
 }
 
 export default DocumentList;
+

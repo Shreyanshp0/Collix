@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, useEffect, useCallback } from 'react
 import toast from 'react-hot-toast';
 import useSocket from '../../hooks/useSocket.jsx';
 
-function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
+function AskAIBox({ onAddDocuments, onOpenDocuments, onAskAi, activeGroupId }) {
   const { socket, isConnected } = useSocket();
   const [question, setQuestion] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -46,13 +46,11 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
       return;
     }
 
-    // State machine: transition from Idle -> Typing (emit typing:start only once)
     if (!isTypingRef.current && socket && isConnected && activeGroupId) {
       isTypingRef.current = true;
       socket.emit('typing:start', { groupId: activeGroupId });
     }
 
-    // Reset inactivity timer on keystrokes without re-emitting typing:start
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
     }
@@ -64,6 +62,7 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
   const addAiMention = () => {
     setQuestion((current) => (current.includes('@AI') ? current : `@AI ${current}`.trim()));
     setPlusOpen(false);
+    textareaRef.current?.focus();
   };
 
   const uploadFiles = (fileList) => {
@@ -90,7 +89,7 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
             groupId: activeGroupId,
           },
         ]);
-        toast.success(`${file.name} attached and indexed in mock flow.`);
+        toast.success(`${file.name} attached.`);
       }, 420);
     });
   };
@@ -123,7 +122,7 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
     stopTyping();
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion && attachedFiles.length === 0) {
-      toast.error('Enter a message or attach a PDF.');
+      toast.error('Enter a message or attach a file.');
       return;
     }
 
@@ -132,8 +131,23 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
       return;
     }
 
+    // AI Query handler if input has @AI mention or onAskAi is present
+    if (trimmedQuestion.startsWith('@AI') || trimmedQuestion.startsWith('@ai')) {
+      const queryText = trimmedQuestion.replace(/^@ai\s*/i, '').trim();
+      if (!queryText) {
+        toast.error('Please type a question after @AI.');
+        return;
+      }
+      if (onAskAi) {
+        onAskAi(queryText);
+        setQuestion('');
+        setPlusOpen(false);
+        return;
+      }
+    }
+
     // Realtime Socket Message Send Flow
-    if (socket && isConnected && !trimmedQuestion.startsWith('@AI') && attachedFiles.length === 0) {
+    if (socket && isConnected && attachedFiles.length === 0) {
       setSending(true);
       socket.emit(
         'message:send',
@@ -154,13 +168,13 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, activeGroupId }) {
       return;
     }
 
-    // Fallback for AI mention or attachments
-    console.log('Ask AI / Attachments submit:', trimmedQuestion, attachedFiles);
-    toast.success('Message captured.');
-    setQuestion('');
-    setAttachedFiles([]);
-    setUploadProgressMap({});
-    setPlusOpen(false);
+    if (onAskAi && trimmedQuestion) {
+      onAskAi(trimmedQuestion);
+      setQuestion('');
+      setAttachedFiles([]);
+      setUploadProgressMap({});
+      setPlusOpen(false);
+    }
   };
 
   useEffect(() => {

@@ -7,19 +7,28 @@ export function toCitationDto(result) {
 		: null;
 
 	if (metadata.sourceType === 'document' || metadata.filename) {
+		const rawText = (result.text || metadata.text || '').trim();
+		const snippet = rawText.length > 280 ? `${rawText.slice(0, 280)}...` : rawText;
 		return {
 			sourceType: 'document',
+			documentId: metadata.documentId || metadata.sourceId || null,
+			name: metadata.filename || 'Document',
 			filename: metadata.filename || 'Document',
 			page: metadata.page ?? null,
+			chunk: metadata.chunkIndex ?? null,
+			snippet,
 			similarityScore,
 		};
 	}
 
 	if (metadata.sourceType === 'message' || metadata.messageId) {
+		const rawText = (result.text || metadata.text || '').trim();
+		const snippet = rawText.length > 280 ? `${rawText.slice(0, 280)}...` : rawText;
 		return {
 			sourceType: 'message',
 			senderName: metadata.senderName || 'Group Member',
 			timestamp: metadata.createdAt || metadata.timestamp || null,
+			snippet,
 			similarityScore,
 		};
 	}

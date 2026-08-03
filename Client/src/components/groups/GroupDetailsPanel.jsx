@@ -13,6 +13,7 @@ export default function GroupDetailsPanel({
   loading = false,
   documents = [],
   members = [],
+  onDeleteDocument,
 }) {
   const [showDocs, setShowDocs] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -103,7 +104,7 @@ export default function GroupDetailsPanel({
 
       {showDocs && (
         <Modal isOpen={showDocs} onClose={() => setShowDocs(false)} size="md" sectionLabel="TRACKED PDFs" title="Tracked PDFs">
-          <DocumentList documents={documents} />
+          <DocumentList documents={documents} onDeleteDocument={onDeleteDocument} />
         </Modal>
       )}
     </section>

@@ -19,8 +19,10 @@
     "groq-sdk": "^1.5.0",
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.12.0",
     "mongoose": "^8.9.5",
     "multer": "^2.0.2",
+    "pdf-parse-new": "^2.1.0",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

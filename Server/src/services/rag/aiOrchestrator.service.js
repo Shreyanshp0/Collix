@@ -112,38 +112,52 @@ export function createAiOrchestrator({
 
 			const processingTime = Date.now() - startTime;
 
+			// Calculate multi-signal confidence based on top-3 average vector similarity of passing chunks
+			const passingCitations = (semanticResult.citations || []).filter(
+				(c) => typeof c.similarityScore === 'number' && c.similarityScore >= 0.5,
+			);
+			const topScores = passingCitations
+				.map((c) => c.similarityScore)
+				.slice(0, 3);
+
+			let confidenceLevel = 'LOW';
+			let confidenceScore = 0;
+			if (semanticResult.passingCount > 0 && topScores.length > 0) {
+				const avgScore = topScores.reduce((sum, s) => sum + s, 0) / topScores.length;
+				confidenceScore = Math.round(avgScore * 100) / 100;
+				if (avgScore >= 0.75) confidenceLevel = 'HIGH';
+				else if (avgScore >= 0.68) confidenceLevel = 'MEDIUM';
+				else confidenceLevel = 'LOW';
+			}
+
+			const confidence = {
+				level: confidenceLevel,
+				score: confidenceScore,
+			};
+
 			// 6. Structured AI Metadata with Clean Citations & Prompt Versioning
 			const aiMetadata = {
 				provider: llmResponse.provider || options.provider || AI_CONFIG.provider,
 				model: llmResponse.model || options.model || AI_CONFIG.model,
 				displayName: options.assistantName || AI_CONFIG.identity.displayName,
 				promptVersion,
+				confidence,
 				sources: semanticResult.citations,
 				processingTime,
 				usage: llmResponse.usage || null,
 			};
 
-			// 7. Persist AI Message to MongoDB
-			const savedMessage = await messages.createMessage({
-				groupId,
-				senderId: null,
-				message: llmResponse.text,
-				type: 'ai',
-				aiMetadata,
-			});
-
-			const messageDto = toMessageDto(savedMessage, { author: { name: aiMetadata.displayName, status: 'online' } });
-
-			// 8. Completion Event Broadcast
 			emitEvent('ai:complete', {
-				message: messageDto,
-				citations: semanticResult.citations,
+				answer: llmResponse.text,
+				confidence,
+				sources: semanticResult.citations,
 				groupId,
 			});
 
 			return {
-				message: messageDto,
-				citations: semanticResult.citations,
+				answer: llmResponse.text,
+				confidence,
+				sources: semanticResult.citations,
 				aiMetadata,
 			};
 		} catch (error) {

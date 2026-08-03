@@ -1,3 +1,4 @@
+import documentProcessor from './rag/documentProcessor.service.js';
 import Document from '../models/Document.js';
 import GroupMember from '../models/GroupMember.js';
 import Group from '../models/Group.js';
@@ -119,6 +120,15 @@ export function createDocumentService({ provider = storageProvider, logger = def
 				});
 
 				createdDocs.push(document);
+
+				try {
+					documentProcessor.enqueueDocument(document._id);
+				} catch (queueErr) {
+					logger.error('Failed to enqueue document for knowledge processing', {
+						documentId: document._id.toString(),
+						error: queueErr?.message || queueErr,
+					});
+				}
 			} catch (uploadErr) {
 				logger.error('Document upload failed', {
 					groupId: groupId.toString(),

@@ -18,13 +18,14 @@ export function createMetadataStore() {
 		return { sourceType: 'message', messageId: message._id.toString(), groupId: message.group.toString(), senderId: message.sender?.toString(), createdAt: message.createdAt, chunkIndex, recordId: record._id.toString() };
 	}
 
-	async function createDocumentMetadata(document, chunkIndex) {
+	async function createDocumentMetadata(document, chunkIndex, text = '') {
+		const chunkText = text || document.content || document.name || '';
 		const record = await VectorMetadata.create({
 			groupId: document.group,
 			sourceType: 'document',
 			sourceId: document._id.toString(),
 			contentType: 'text',
-			text: document.content || '',
+			text: chunkText,
 			chunkIndex,
 			documentId: document._id,
 			filename: document.originalName || document.name,
@@ -34,7 +35,7 @@ export function createMetadataStore() {
 				uploadedAt: document.uploadedAt,
 			},
 		});
-		return { sourceType: 'document', documentId: document._id.toString(), groupId: document.group.toString(), uploadedBy: document.uploadedBy.toString(), uploadedAt: document.uploadedAt, chunkIndex, recordId: record._id.toString() };
+		return { sourceType: 'document', documentId: document._id.toString(), groupId: document.group.toString(), uploadedBy: document.uploadedBy?.toString(), uploadedAt: document.uploadedAt, chunkIndex, recordId: record._id.toString() };
 	}
 
 	return { createDocumentMetadata, createMessageMetadata };

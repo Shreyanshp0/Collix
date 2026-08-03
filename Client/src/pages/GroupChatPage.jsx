@@ -2,11 +2,13 @@ import { Activity, Hash, FileText, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import aiApi from '../api/ai.api.js';
 import documentsApi from '../api/documents.api.js';
 import groupsApi from '../api/groups.api.js';
 import useAuth from '../hooks/useAuth.jsx';
 import useMessages from '../hooks/useMessages.jsx';
 import useSocket from '../hooks/useSocket.jsx';
+import AIResponse from '../components/ai/AIResponse.jsx';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import TypingIndicator from '../components/chat/TypingIndicator.jsx';
@@ -29,9 +31,31 @@ function GroupChatPage() {
   const [typingUsers, setTypingUsers] = useState([]);
   const safetyTimeoutRef = useRef(null);
 
+  const [aiResponse, setAiResponse] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+
+  const handleAskAi = async (questionText) => {
+    if (!groupId || !questionText) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiResponse(null);
+
+    try {
+      const data = await aiApi.ask({ groupId, question: questionText });
+      setAiResponse(data);
+    } catch (err) {
+      console.error('AI Q&A Error:', err);
+      const message = err.response?.data?.message || err.message || 'Failed to process AI question';
+      setAiError(message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const {
     messages,
@@ -292,6 +316,7 @@ function GroupChatPage() {
               loading={loading}
               documents={documents}
               members={members}
+              onDeleteDocument={handleDeleteDocument}
             />
           </aside>
         )}
@@ -333,10 +358,14 @@ function GroupChatPage() {
               </div>
             )}
 
-            <div className="shrink-0 px-3 pb-2">
+            <div className="shrink-0 space-y-2 px-3 pb-2">
+              {(aiLoading || aiError || aiResponse) && (
+                <AIResponse response={aiResponse} loading={aiLoading} error={aiError} documents={documents} />
+              )}
               <AskAIBox
                 onAddDocuments={handleAddDocuments}
                 onOpenDocuments={() => setIsDocumentsModalOpen(true)}
+                onAskAi={handleAskAi}
                 activeGroupId={groupId}
               />
             </div>
