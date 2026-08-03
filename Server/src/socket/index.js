@@ -10,6 +10,12 @@ import defaultLogger, { assertLogger } from '../utils/logger.js';
 import { SOCKET_EVENTS } from '../utils/socket.utils.js';
 import { registerChatSocketHandlers } from './chat.socket.js';
 
+let ioInstance = null;
+
+export function getIO() {
+	return ioInstance;
+}
+
 export function initializeSocketServer(httpServer, {
 	config = createSocketConfig(),
 	groupService: groups = groupService,
@@ -21,6 +27,7 @@ export function initializeSocketServer(httpServer, {
 } = {}) {
 	assertLogger(logger);
 	const io = new Server(httpServer, config);
+	ioInstance = io;
 	io.use(createSocketAuthMiddleware({ logger }));
 
 	io.on('connection', (socket) => {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { addMember, browse, create, getById, join, leave, list } from '../controllers/group.controller.js';
+import { addMember, browse, create, getById, join, leave, list, listMembers } from '../controllers/group.controller.js';
 import { validateAddMemberInput, validateGroupParams, validateNewGroup } from '../validators/group.validator.js';
 import { validatePagination } from '../validators/message.validator.js';
 import { NotImplementedError } from '../utils/AppError.js';
@@ -55,8 +55,6 @@ router.post('/groups/:groupId/members', authenticate, validate({ params: validat
  * GET /api/v1/groups/:groupId/members
  * List members in a group.
  */
-router.get('/groups/:groupId/members', authenticate, validate({ params: (value) => value }), asyncHandler(async () => {
-	throw new NotImplementedError('Group members listing');
-}));
+router.get('/groups/:groupId/members', authenticate, validate({ params: validateGroupParams }), listMembers);
 
 export default router;

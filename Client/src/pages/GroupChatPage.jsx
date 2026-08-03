@@ -43,11 +43,12 @@ function GroupChatPage() {
     if (!groupId || !questionText) return;
     setAiLoading(true);
     setAiError(null);
-    setAiResponse(null);
 
     try {
       const data = await aiApi.ask({ groupId, question: questionText });
-      setAiResponse(data);
+      if (data?.message) {
+        appendMessage(data.message);
+      }
     } catch (err) {
       console.error('AI Q&A Error:', err);
       const message = err.response?.data?.message || err.message || 'Failed to process AI question';
@@ -154,22 +155,34 @@ function GroupChatPage() {
 
     const handlePresenceUpdate = (payload) => {
       if (!payload) return;
-      const targetUserId = payload.user?.id || payload.userId;
+      const targetUserId = payload.user?.id || payload.user?._id || payload.userId;
       if (!targetUserId) return;
 
       setMembers((currentMembers) => {
         const isMember = currentMembers.some(
-          (m) => (m.user?.id || m.id) === targetUserId,
+          (m) => (m.user?.id || m.user?._id || m.id || m._id) === targetUserId,
         );
-        if (!isMember) return currentMembers;
+
+        if (!isMember && payload.user) {
+          return [
+            ...currentMembers,
+            {
+              id: targetUserId,
+              role: 'MEMBER',
+              status: payload.status || 'online',
+              user: payload.user,
+            },
+          ];
+        }
 
         return currentMembers.map((m) => {
-          const memberUserId = m.user?.id || m.id;
+          const memberUserId = m.user?.id || m.user?._id || m.id || m._id;
           if (memberUserId === targetUserId) {
+            const newStatus = payload.status || 'online';
             return {
               ...m,
-              status: payload.status,
-              user: m.user ? { ...m.user, status: payload.status } : m.user,
+              status: newStatus,
+              user: m.user ? { ...m.user, status: newStatus } : { id: targetUserId, status: newStatus },
             };
           }
           return m;

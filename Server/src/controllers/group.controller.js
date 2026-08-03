@@ -40,7 +40,18 @@ const browse = asyncHandler(async (req, res) => {
 
 const getById = asyncHandler(async (req, res) => {
 	const summary = await groupService.getGroupSummary({ groupId: req.params.groupId, requesterId: req.user._id });
-	return success(res, { message: 'Group fetched successfully', data: { group: toGroupSummaryDto(summary) } });
+	return success(res, {
+		message: 'Group fetched successfully',
+		data: {
+			group: toGroupSummaryDto(summary),
+			members: summary.members || [],
+		},
+	});
+});
+
+const listMembers = asyncHandler(async (req, res) => {
+	const members = await groupService.listMembers({ groupId: req.params.groupId, requesterId: req.user._id });
+	return success(res, { message: 'Members fetched successfully', data: { members } });
 });
 
 const join = asyncHandler(async (req, res) => {
@@ -66,4 +77,4 @@ const addMember = asyncHandler(async (req, res) => {
 const update = asyncHandler(async () => { throw new NotImplementedError('Group update'); });
 const remove = asyncHandler(async () => { throw new NotImplementedError('Group deletion'); });
 
-export { addMember, browse, create, getById, join, leave, list, remove, update };
+export { addMember, browse, create, getById, join, leave, list, listMembers, remove, update };

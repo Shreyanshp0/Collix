@@ -1,6 +1,7 @@
 import Document from '../models/Document.js';
 import Group from '../models/Group.js';
 import GroupMember from '../models/GroupMember.js';
+import presenceService from './presence.services.js';
 import { GROUP_PERMISSIONS } from '../constants/permissions.js';
 import { GROUP_ROLES } from '../constants/roles.js';
 import { AuthorizationError, ConflictError, NotFoundError } from '../utils/AppError.js';
@@ -87,14 +88,43 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		await GroupMember.deleteOne({ _id: membership._id });
 	}
 
+	async function listMembers({ groupId, requesterId }) {
+		await requireActiveGroup(groupId);
+		await requireActiveMembership(groupId, requesterId);
+		const members = await GroupMember.find({ group: groupId, banned: false })
+			.populate('user', 'name username email status')
+			.sort({ joinedAt: 1 })
+			.lean();
+
+		return members.map((m) => {
+			const uId = m.user?._id?.toString?.() || m.user?.id || m.user?.toString?.();
+			const liveStatus = uId ? presenceService.getPresence({ userId: uId }).status : 'offline';
+			return {
+				id: m._id.toString(),
+				role: m.role,
+				joinedAt: m.joinedAt,
+				status: liveStatus,
+				user: m.user ? {
+					id: uId,
+					_id: uId,
+					name: m.user.name,
+					username: m.user.username,
+					email: m.user.email,
+					status: liveStatus,
+				} : null,
+			};
+		});
+	}
+
 	async function getGroupSummary({ groupId, requesterId }) {
 		const group = await requireActiveGroup(groupId);
 		await requireActiveMembership(groupId, requesterId);
-		const [memberCount, documentCount] = await Promise.all([
+		const [memberCount, documentCount, members] = await Promise.all([
 			GroupMember.countDocuments({ group: groupId, banned: false }),
 			Document.countDocuments({ group: groupId }),
+			listMembers({ groupId, requesterId }),
 		]);
-		return { group, memberCount, documentCount };
+		return { group, memberCount, documentCount, members };
 	}
 
 	async function listMyGroups({ userId, page = 1, limit = 30 }) {
@@ -144,7 +174,7 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		};
 	}
 
-	return { addMember, createGroup, getGroupSummary, joinGroup, leaveGroup, listMyGroups, listPublicGroupsToBrowse, verifyMemberAccess };
+	return { addMember, createGroup, getGroupSummary, joinGroup, leaveGroup, listMembers, listMyGroups, listPublicGroupsToBrowse, verifyMemberAccess };
 }
 
 const groupService = createGroupService();

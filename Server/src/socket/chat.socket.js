@@ -29,12 +29,20 @@ export function registerChatSocketHandlers({
 		const roomId = validateSocketObjectId(groupId, 'Group ID');
 		const membership = await groupService.verifyMemberAccess({ groupId: roomId, userId });
 		await socket.join(roomId);
+		io.to(roomId).emit(SOCKET_EVENTS.PRESENCE_UPDATE, {
+			user: toRealtimeUserDto(socket.user),
+			status: 'online',
+		});
 		return { groupId: roomId, role: membership.role };
 	});
 
 	register(SOCKET_EVENTS.GROUP_LEAVE, async ({ groupId }) => {
 		const roomId = validateSocketObjectId(groupId, 'Group ID');
 		await socket.leave(roomId);
+		socket.to(roomId).emit(SOCKET_EVENTS.PRESENCE_UPDATE, {
+			user: toRealtimeUserDto(socket.user),
+			status: 'offline',
+		});
 		return { groupId: roomId };
 	});
 

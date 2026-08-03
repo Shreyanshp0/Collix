@@ -7,6 +7,7 @@ import { toMessageDto } from '../../mappers/message.mapper.js';
 import { ValidationError } from '../../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../../utils/logger.js';
 import { AI_CONFIG } from '../../config/ai.config.js';
+import { getIO } from '../../socket/index.js';
 
 /**
  * AI Orchestrator Service
@@ -170,6 +171,10 @@ export function createAiOrchestrator({
 			});
 
 			// 8. Broadcast Realtime Socket Events
+			const io = getIO();
+			if (io) {
+				io.to(groupId).emit('new-message', messageDto);
+			}
 			emitEvent('new-message', messageDto);
 			emitEvent('ai:complete', {
 				message: messageDto,
