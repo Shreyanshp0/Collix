@@ -2,11 +2,21 @@ import { Lock, Globe, Plus } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import groupsApi from '../../api/groups.api.js';
+import AIConfigStep from './AIConfigStep.jsx';
 
 function CreateGroupForm({ onGroupCreated, onCancel }) {
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState('private');
+  const [aiConfig, setAiConfig] = useState({
+    workspaceDomain: 'general',
+    persona: 'mentor',
+    responseStyle: 'balanced',
+    defaultMode: 'hybrid',
+    creativity: 'medium',
+    additionalInstructions: '',
+    capabilities: { documentQA: true, brainstorming: true },
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const handleCreateGroup = async () => {
@@ -23,6 +33,7 @@ function CreateGroupForm({ onGroupCreated, onCancel }) {
         name: trimmedName,
         description: description.trim(),
         visibility,
+        aiConfiguration: aiConfig,
       });
       toast.success(`Created group: ${group.name || trimmedName}`);
       setGroupName('');
@@ -142,6 +153,8 @@ function CreateGroupForm({ onGroupCreated, onCancel }) {
             </label>
           </div>
         </div>
+
+        <AIConfigStep value={aiConfig} onChange={setAiConfig} disabled={submitting} />
       </div>
 
       <div className="mt-4 flex items-center justify-end gap-2">

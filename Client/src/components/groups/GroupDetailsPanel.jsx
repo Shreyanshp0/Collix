@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { Bot, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Modal from '../shared/Modal.jsx';
 import DocumentList from '../documents/DocumentList.jsx';
+import AISettingsModal from './AISettingsModal.jsx';
 import groupsApi from '../../api/groups.api.js';
 
 export default function GroupDetailsPanel({
@@ -16,6 +17,7 @@ export default function GroupDetailsPanel({
   onDeleteDocument,
 }) {
   const [showDocs, setShowDocs] = useState(false);
+  const [showAiSettings, setShowAiSettings] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const navigate = useNavigate();
 
@@ -24,6 +26,8 @@ export default function GroupDetailsPanel({
   const memberCount = (members && members.length) || group?.memberCount || 0;
   const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : 0;
   const visibility = group?.visibility === 'public' ? 'PUBLIC' : 'PRIVATE';
+  const aiDomain = group?.aiConfiguration?.workspaceDomain || 'general';
+  const aiPersona = group?.aiConfiguration?.persona || 'mentor';
 
   const formatDate = (iso) => {
     try {
@@ -87,6 +91,26 @@ export default function GroupDetailsPanel({
             </div>
           </div>
 
+          {/* AI Workspace Card */}
+          <div className="rounded-sm border-2 border-border bg-[#0f131b] p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-aiPurple">
+                <Bot className="h-4 w-4" />
+                <span>AI Workspace Persona</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiSettings(true)}
+                className="rounded-sm border border-border bg-background px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-primaryText hover:border-aiPurple"
+              >
+                Configure
+              </button>
+            </div>
+            <div className="text-xs font-bold uppercase tracking-[0.06em] text-primaryText">
+              {aiDomain} • {aiPersona}
+            </div>
+          </div>
+
           {/* Action: Leave Group */}
           <div className="rounded-sm border-2 border-border bg-[#0f131b] p-2">
             <button
@@ -106,6 +130,14 @@ export default function GroupDetailsPanel({
         <Modal isOpen={showDocs} onClose={() => setShowDocs(false)} size="md" sectionLabel="TRACKED PDFs" title="Tracked PDFs">
           <DocumentList documents={documents} onDeleteDocument={onDeleteDocument} />
         </Modal>
+      )}
+
+      {showAiSettings && (
+        <AISettingsModal
+          isOpen={showAiSettings}
+          onClose={() => setShowAiSettings(false)}
+          groupId={activeGroupId}
+        />
       )}
     </section>
   );

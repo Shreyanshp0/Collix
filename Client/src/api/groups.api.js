@@ -16,9 +16,19 @@ export const groupsApi = {
     return response.data?.data || response.data;
   },
 
-  create: async ({ name, description, visibility = 'private' }) => {
-    const response = await axiosClient.post('/groups', { name, description, visibility });
+  create: async ({ name, description, visibility = 'private', aiConfiguration }) => {
+    const response = await axiosClient.post('/groups', { name, description, visibility, aiConfiguration });
     return response.data?.data?.group || response.data?.data || response.data;
+  },
+
+  getAIConfig: async (groupId) => {
+    const response = await axiosClient.get(`/groups/${groupId}/ai/configuration`);
+    return response.data?.data || response.data;
+  },
+
+  updateAIConfig: async (groupId, aiConfiguration) => {
+    const response = await axiosClient.post(`/groups/${groupId}/ai/configure`, { aiConfiguration });
+    return response.data?.data || response.data;
   },
 
   join: async (groupId) => {

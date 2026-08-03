@@ -1,5 +1,6 @@
 import { ValidationError } from '../../utils/AppError.js';
 import { AI_CONFIG } from '../../config/ai.config.js';
+import GLOBAL_SYSTEM_PROMPT from './prompts/global.prompt.js';
 
 export const PROMPT_VERSION = AI_CONFIG.promptVersion || 'v1.0';
 
@@ -10,7 +11,7 @@ export function createPromptBuilder({ promptVersion = PROMPT_VERSION } = {}) {
 		}
 		return recentMessages
 			.map((msg) => {
-				const senderName = msg.sender?.name || msg.sender?.username || (msg.type === 'ai' ? 'Collix AI' : 'User');
+				const senderName = msg.sender?.name || msg.sender?.username || (msg.type === 'ai' ? 'Nexus AI' : 'User');
 				const content = msg.message || '';
 				const time = msg.createdAt ? new Date(msg.createdAt).toISOString() : '';
 				return `[${time}] ${senderName}: ${content}`;
@@ -32,7 +33,13 @@ export function createPromptBuilder({ promptVersion = PROMPT_VERSION } = {}) {
 			.join('\n\n');
 	}
 
-	function buildPrompt({ question, retrievedContext = [], recentMessages = [], groupName = '' } = {}) {
+	function buildPrompt({
+		question,
+		retrievedContext = [],
+		recentMessages = [],
+		groupName = '',
+		workspacePrompt = '',
+	} = {}) {
 		if (typeof question !== 'string' || !question.trim()) {
 			throw new ValidationError('A user question is required to build a prompt');
 		}
@@ -40,13 +47,17 @@ export function createPromptBuilder({ promptVersion = PROMPT_VERSION } = {}) {
 		const formattedHistory = formatRecentConversation(recentMessages);
 		const formattedContext = formatSemanticContext(retrievedContext);
 
-		const systemPrompt = `You are the Collix AI assistant for the group${groupName ? ` "${groupName}"` : ''}. Answer using ONLY the information provided below in the Recent conversation and Relevant context sections.
+		const systemPromptSections = [GLOBAL_SYSTEM_PROMPT];
 
-Strict Instructions:
-- If the context is insufficient or no relevant information is present, say exactly: "I couldn't find that information in this group's documents or previous conversations."
-- Never invent facts, make assumptions, or extrapolate beyond the provided text.
-- Never use outside knowledge.
-- Quote or cite the source document filename, page, or past message timestamp where applicable.`;
+		if (groupName) {
+			systemPromptSections.push(`Active Group Workspace: "${groupName}"`);
+		}
+
+		if (workspacePrompt && workspacePrompt.trim()) {
+			systemPromptSections.push(workspacePrompt.trim());
+		}
+
+		const systemPrompt = systemPromptSections.join('\n\n');
 
 		const userPrompt = `Recent conversation:
 ${formattedHistory}

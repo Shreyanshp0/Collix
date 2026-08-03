@@ -63,9 +63,10 @@ export function createAiOrchestrator({
 			// Notify socket/listener of thinking start
 			emitEvent('ai:thinking', { phase: 'retrieving_context', groupId });
 
-			// 2. Fetch Group details for prompt context (optional)
-			const group = await Group.findById(groupId).select('name').lean();
+			// 2. Fetch Group details for prompt context & workspace AI settings
+			const group = await Group.findById(groupId).select('name aiConfiguration promptTemplate').populate('promptTemplate').lean();
 			const groupName = group?.name || '';
+			const workspacePrompt = group?.promptTemplate?.compiledPrompt || '';
 
 			// 3. Separate Retrieval Calls
 			// a) Semantic Retrieval (Documents & past vector messages)
@@ -85,6 +86,7 @@ export function createAiOrchestrator({
 				retrievedContext: semanticResult.chunks,
 				recentMessages,
 				groupName,
+				workspacePrompt,
 				assistantName: options.assistantName || AI_CONFIG.identity.displayName,
 			});
 

@@ -2,6 +2,7 @@ import Document from '../models/Document.js';
 import Group from '../models/Group.js';
 import GroupMember from '../models/GroupMember.js';
 import presenceService from './presence.services.js';
+import workspacePromptService from './rag/workspacePrompt.service.js';
 import { GROUP_PERMISSIONS } from '../constants/permissions.js';
 import { GROUP_ROLES } from '../constants/roles.js';
 import { AuthorizationError, ConflictError, NotFoundError } from '../utils/AppError.js';
@@ -35,12 +36,30 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		return membership;
 	}
 
-	async function createGroup({ ownerId, name, description = '', image, visibility = 'private' }) {
+	async function createGroup({ ownerId, name, description = '', image, visibility = 'private', aiConfiguration }) {
 		validateNewGroup({ name, visibility });
+
+		let promptTemplateId = null;
+		if (aiConfiguration) {
+			try {
+				const template = await workspacePromptService.getOrCreateWorkspacePrompt(aiConfiguration, logger);
+				promptTemplateId = template?._id || null;
+			} catch (err) {
+				logger.error('Failed to resolve PromptTemplate during group creation:', err);
+			}
+		}
+
 		const group = await Group.create({
-			name: name.trim(), description: description.trim(), image: image?.trim() || null,
-			visibility, owner: ownerId, createdBy: ownerId,
+			name: name.trim(),
+			description: description.trim(),
+			image: image?.trim() || null,
+			visibility,
+			owner: ownerId,
+			createdBy: ownerId,
+			...(aiConfiguration ? { aiConfiguration } : {}),
+			...(promptTemplateId ? { promptTemplate: promptTemplateId } : {}),
 		});
+
 		try {
 			await GroupMember.create({ group: group._id, user: ownerId, role: GROUP_ROLES.OWNER });
 			return group;
@@ -52,6 +71,32 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 			}
 			throw error;
 		}
+	}
+
+	async function getAIConfiguration({ groupId, requesterId }) {
+		await requireActiveGroup(groupId);
+		await requireActiveMembership(groupId, requesterId);
+		const group = await Group.findById(groupId).populate('promptTemplate').lean();
+		return {
+			aiConfiguration: group.aiConfiguration || {},
+			promptTemplate: group.promptTemplate || null,
+		};
+	}
+
+	async function configureAI({ groupId, actorId, aiConfiguration }) {
+		await requirePermission(groupId, actorId, 'MANAGE_MEMBERS');
+		const template = await workspacePromptService.getOrCreateWorkspacePrompt(aiConfiguration, logger);
+		const group = await Group.findByIdAndUpdate(
+			groupId,
+			{
+				$set: {
+					aiConfiguration,
+					promptTemplate: template._id,
+				},
+			},
+			{ new: true }
+		).populate('promptTemplate');
+		return { group, promptTemplate: template };
 	}
 
 	async function joinGroup({ groupId, userId }) {
@@ -174,7 +219,7 @@ export function createGroupService({ logger = defaultLogger } = {}) {
 		};
 	}
 
-	return { addMember, createGroup, getGroupSummary, joinGroup, leaveGroup, listMembers, listMyGroups, listPublicGroupsToBrowse, verifyMemberAccess };
+	return { addMember, configureAI, createGroup, getAIConfiguration, getGroupSummary, joinGroup, leaveGroup, listMembers, listMyGroups, listPublicGroupsToBrowse, verifyMemberAccess };
 }
 
 const groupService = createGroupService();

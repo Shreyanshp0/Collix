@@ -20,6 +20,17 @@ const groupSchema = new Schema(
 		},
 		createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
 		archived: { type: Boolean, default: false, index: true },
+		aiConfiguration: {
+			workspaceDomain: { type: String, default: 'general' },
+			persona: { type: String, default: 'mentor' },
+			responseStyle: { type: String, default: 'balanced' },
+			defaultMode: { type: String, default: 'hybrid' },
+			creativity: { type: String, default: 'medium' },
+			additionalInstructions: { type: String, default: '' },
+			capabilities: { type: Schema.Types.Mixed, default: {} },
+			metadata: { type: Schema.Types.Mixed, default: {} },
+		},
+		promptTemplate: { type: Schema.Types.ObjectId, ref: 'PromptTemplate', default: null, index: true },
 	},
 	{ timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

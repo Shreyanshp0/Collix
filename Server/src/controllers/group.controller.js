@@ -6,9 +6,27 @@ import asyncHandler from '../utils/asyncHandler.js';
 import { created, noContent, success } from '../utils/response.js';
 
 const create = asyncHandler(async (req, res) => {
-	const { name, description, image, visibility } = req.body || {};
-	const group = await groupService.createGroup({ ownerId: req.user._id, name, description: description || '', image, visibility });
+	const { name, description, image, visibility, aiConfiguration } = req.body || {};
+	const group = await groupService.createGroup({
+		ownerId: req.user._id,
+		name,
+		description: description || '',
+		image,
+		visibility,
+		aiConfiguration,
+	});
 	return created(res, { message: 'Group created successfully', data: { group: toGroupDto(group) } });
+});
+
+const getAIConfig = asyncHandler(async (req, res) => {
+	const result = await groupService.getAIConfiguration({ groupId: req.params.groupId, requesterId: req.user._id });
+	return success(res, { message: 'AI Configuration fetched successfully', data: result });
+});
+
+const configureAI = asyncHandler(async (req, res) => {
+	const { aiConfiguration } = req.body || {};
+	const result = await groupService.configureAI({ groupId: req.params.groupId, actorId: req.user._id, aiConfiguration });
+	return success(res, { message: 'AI Configuration updated successfully', data: result });
 });
 
 const list = asyncHandler(async (req, res) => {
@@ -77,4 +95,4 @@ const addMember = asyncHandler(async (req, res) => {
 const update = asyncHandler(async () => { throw new NotImplementedError('Group update'); });
 const remove = asyncHandler(async () => { throw new NotImplementedError('Group deletion'); });
 
-export { addMember, browse, create, getById, join, leave, list, listMembers, remove, update };
+export { addMember, browse, configureAI, create, getAIConfig, getById, join, leave, list, listMembers, remove, update };

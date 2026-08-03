@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { addMember, browse, create, getById, join, leave, list, listMembers } from '../controllers/group.controller.js';
+import { addMember, browse, configureAI, create, getAIConfig, getById, join, leave, list, listMembers } from '../controllers/group.controller.js';
 import { validateAddMemberInput, validateGroupParams, validateNewGroup } from '../validators/group.validator.js';
 import { validatePagination } from '../validators/message.validator.js';
 import { NotImplementedError } from '../utils/AppError.js';
@@ -56,5 +56,20 @@ router.post('/groups/:groupId/members', authenticate, validate({ params: validat
  * List members in a group.
  */
 router.get('/groups/:groupId/members', authenticate, validate({ params: validateGroupParams }), listMembers);
+
+/**
+ * GET /api/v1/groups/:groupId/ai/configuration
+ * Fetch workspace AI configuration and prompt preview.
+ */
+router.get('/groups/:groupId/ai/configuration', authenticate, validate({ params: validateGroupParams }), getAIConfig);
+
+/**
+ * POST /api/v1/groups/:groupId/ai/configure
+ * PATCH /api/v1/groups/:groupId/ai/configuration
+ * Update or regenerate workspace AI configuration.
+ */
+router.post('/groups/:groupId/ai/configure', authenticate, validate({ params: validateGroupParams }), configureAI);
+router.patch('/groups/:groupId/ai/configuration', authenticate, validate({ params: validateGroupParams }), configureAI);
+router.post('/groups/:groupId/ai/regenerate', authenticate, validate({ params: validateGroupParams }), configureAI);
 
 export default router;
