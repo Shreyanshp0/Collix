@@ -55,8 +55,20 @@ function GroupChatPage() {
       }
     } catch (err) {
       console.error('AI Q&A Error:', err);
-      const message = err.response?.data?.message || err.message || 'Failed to process AI question';
-      toast.error(message);
+      if (err.response?.data?.code === 'CAPABILITY_DENIED') {
+        const errorData = err.response.data;
+        appendMessage({
+          _id: `denied_${Date.now()}`,
+          id: `denied_${Date.now()}`,
+          type: 'capability_denied',
+          code: 'CAPABILITY_DENIED',
+          createdAt: new Date().toISOString(),
+          capabilityDeniedData: errorData,
+        });
+      } else {
+        const message = err.response?.data?.message || err.message || 'Failed to process AI question';
+        toast.error(message);
+      }
     } finally {
       setAiLoading(false);
     }

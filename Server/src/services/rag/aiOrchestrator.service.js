@@ -4,35 +4,35 @@ import llmProvider from '../../providers/llm/index.js';
 import messageService from '../message.services.js';
 import Group from '../../models/Group.js';
 import { toMessageDto } from '../../mappers/message.mapper.js';
-import { ValidationError } from '../../utils/AppError.js';
+import { ValidationError, WorkspacePolicyViolation } from '../../utils/AppError.js';
 import defaultLogger, { assertLogger } from '../../utils/logger.js';
 import { AI_CONFIG } from '../../config/ai.config.js';
 import { getIO } from '../../socket/index.js';
 import eventBus from '../eventBus.service.js';
+import capabilityDetector from '../ai/capabilityDetector.service.js';
+import workspacePolicyEngine from '../ai/workspacePolicyEngine.service.js';
+import responsePolicy from '../ai/responsePolicy.service.js';
 
 /**
  * AI Orchestrator Service
  * Responsible for orchestrating AI chat requests:
  * - Security & Group membership validation
+ * - Backend AI capability authorization & Workspace Policy Engine check BEFORE LLM/RAG
  * - Semantic retrieval & Short-term conversation history memory
  * - Provider-agnostic prompt generation with versioning
  * - Normalized LLM invocation (Groq / multi-provider)
+ * - Defense-in-depth response policy validation
  * - AI message persistence & Citation mapping
  * - Real-time Socket.IO streaming event dispatches
- * 
- * Future Capability Extension Points:
- * - Multi-model routing (via options.provider / options.model)
- * - Tool/function calling (via options.tools & llmResponse.toolCalls)
- * - Multiple AI assistants (via options.assistantId / options.assistantConfig)
- * - Cross-group AI memory (via options.crossGroupMemory)
- * - Multimodal input / Image understanding (via options.attachments)
- * - Agent workflow execution (via options.agentWorkflow)
  */
 export function createAiOrchestrator({
 	retriever = ragRetriever,
 	prompter = promptBuilder,
 	llm = llmProvider,
 	messages = messageService,
+	detector = capabilityDetector,
+	policyEngine = workspacePolicyEngine,
+	responsePolicyScanner = responsePolicy,
 	logger = defaultLogger,
 } = {}) {
 	assertLogger(logger);
@@ -57,61 +57,112 @@ export function createAiOrchestrator({
 		}
 		if (!userId) throw new ValidationError('Authenticated user ID is required');
 
-		// Validate group membership before retrieval
+		// Validate group membership before processing
 		await messages.requireMembership(groupId, userId);
+
+		// 2. Fetch Group details for workspace AI configuration & prompt template
+		const group = await Group.findById(groupId)
+			.select('name aiConfiguration promptTemplate')
+			.populate('promptTemplate')
+			.lean();
+		const groupName = group?.name || '';
+		const workspacePrompt = group?.promptTemplate?.compiledPrompt || '';
+
+		// 3. BACKEND POLICY AUTHORIZATION CHECK (EXECUTIVE RULE: BEFORE RAG RETRIEVAL & BEFORE GROQ)
+		const intentResult = detector.detectIntent(question.trim());
+		const authResult = policyEngine.authorizeRequest({
+			userId,
+			groupId,
+			question: question.trim(),
+			detectedResult: intentResult,
+			aiConfiguration: group?.aiConfiguration,
+			requestId: options.requestId,
+		});
+
+		if (!authResult.allowed) {
+			const policyViolationErr = new WorkspacePolicyViolation({
+				requiredCapability: authResult.missingCapability,
+				enabledCapabilities: authResult.enabledCapabilities,
+				blockedCapabilities: authResult.blockedCapabilities,
+				risk: authResult.risk,
+				message: authResult.message,
+			});
+
+			emitEvent('ai:error', {
+				code: 'CAPABILITY_DENIED',
+				message: policyViolationErr.message,
+				requiredCapability: authResult.missingCapability,
+				enabledCapabilities: authResult.enabledCapabilities,
+				blockedCapabilities: authResult.blockedCapabilities,
+				risk: authResult.risk,
+			});
+
+			throw policyViolationErr;
+		}
+
+		// Apply capability max token limit if specified
+		const mergedOptions = {
+			...options,
+			maxTokens: authResult.maxTokens || options.maxTokens || AI_CONFIG.maxTokens,
+		};
 
 		try {
 			// Notify socket/listener of thinking start
 			emitEvent('ai:thinking', { phase: 'retrieving_context', groupId });
 
-			// 2. Fetch Group details for prompt context & workspace AI settings
-			const group = await Group.findById(groupId).select('name aiConfiguration promptTemplate').populate('promptTemplate').lean();
-			const groupName = group?.name || '';
-			const workspacePrompt = group?.promptTemplate?.compiledPrompt || '';
-
-			// 3. Separate Retrieval Calls
+			// 4. Separate Retrieval Calls
 			// a) Semantic Retrieval (Documents & past vector messages)
 			const semanticResult = await retriever.retrieveSemanticContext({
 				query: question.trim(),
 				groupId,
-				options,
+				options: mergedOptions,
 			});
 
 			// b) Short-term Conversation Memory Retrieval (Last N messages from MongoDB)
-			const recentLimit = options.recentMessagesLimit || AI_CONFIG.retrieval.recentMessagesLimit;
+			const recentLimit = mergedOptions.recentMessagesLimit || AI_CONFIG.retrieval.recentMessagesLimit;
 			const recentMessages = await messages.getRecentConversation({ groupId, limit: recentLimit });
 
-			// 4. Provider-Agnostic Prompt Construction
+			// 5. Provider-Agnostic Prompt Construction
 			const { systemPrompt, userPrompt, promptVersion } = prompter.buildPrompt({
 				question: question.trim(),
 				retrievedContext: semanticResult.chunks,
 				recentMessages,
 				groupName,
 				workspacePrompt,
-				assistantName: options.assistantName || AI_CONFIG.identity.displayName,
+				assistantName: mergedOptions.assistantName || AI_CONFIG.identity.displayName,
 			});
 
 			emitEvent('ai:thinking', { phase: 'generating_response', groupId });
 
-			// 5. LLM Invocation with Normalization
+			// 6. LLM Invocation with Normalization
 			let llmResponse;
-			const tools = options.tools || []; // Extension point for future tool calling
+			const tools = mergedOptions.tools || []; // Extension point for future tool calling
 
-			if (options.stream) {
+			if (mergedOptions.stream) {
 				llmResponse = await llm.generateStream({
 					prompt: userPrompt,
 					systemPrompt,
 					onToken: (delta) => emitEvent('ai:delta', { delta, groupId }),
-					options,
+					options: mergedOptions,
 					tools,
 				});
 			} else {
 				llmResponse = await llm.generate({
 					prompt: userPrompt,
 					systemPrompt,
-					options,
+					options: mergedOptions,
 					tools,
 				});
+			}
+
+			// 7. Post-LLM Defense-In-Depth Response Validation Scan
+			const responseCheck = responsePolicyScanner.validateResponse({
+				responseText: llmResponse.text,
+				aiConfiguration: group?.aiConfiguration,
+			});
+
+			if (responseCheck.violatesPolicy) {
+				llmResponse.text = responseCheck.sanitizedResponse;
 			}
 
 			const processingTime = Date.now() - startTime;
@@ -139,11 +190,11 @@ export function createAiOrchestrator({
 				score: confidenceScore,
 			};
 
-			// 6. Structured AI Metadata with Clean Citations & Prompt Versioning
+			// 8. Structured AI Metadata with Clean Citations & Prompt Versioning
 			const aiMetadata = {
-				provider: llmResponse.provider || options.provider || AI_CONFIG.provider,
-				model: llmResponse.model || options.model || AI_CONFIG.model,
-				displayName: options.assistantName || AI_CONFIG.identity.displayName || 'Collix AI',
+				provider: llmResponse.provider || mergedOptions.provider || AI_CONFIG.provider,
+				model: llmResponse.model || mergedOptions.model || AI_CONFIG.model,
+				displayName: mergedOptions.assistantName || AI_CONFIG.identity.displayName || 'Collix AI',
 				promptVersion,
 				confidence,
 				citations: semanticResult.citations,
@@ -153,7 +204,7 @@ export function createAiOrchestrator({
 				usage: llmResponse.usage || null,
 			};
 
-			// 7. Persist AI Message to MongoDB
+			// 9. Persist AI Message to MongoDB
 			const savedMessage = await messages.createMessage({
 				groupId,
 				senderId: null,
@@ -173,23 +224,25 @@ export function createAiOrchestrator({
 				},
 			});
 
-			// 8. Broadcast Realtime Socket Events & Notifications
+			// 10. Broadcast Realtime Socket Events & Notifications
 			const io = getIO();
 			if (io) {
 				io.to(groupId).emit('new-message', messageDto);
 			}
-			eventBus.publish('AI_RESPONSE_READY', {
-				groupId,
-				askedBy: userId,
-				messageId: savedMessage._id.toString(),
-			});
-			emitEvent('new-message', messageDto);
+
 			emitEvent('ai:complete', {
 				message: messageDto,
 				answer: llmResponse.text,
 				confidence,
 				sources: semanticResult.citations,
+				aiMetadata,
+			});
+
+			eventBus.emit('AI_RESPONSE_READY', {
 				groupId,
+				askedBy: userId,
+				messageId: savedMessage._id.toString(),
+				text: llmResponse.text,
 			});
 
 			return {
@@ -199,13 +252,10 @@ export function createAiOrchestrator({
 				sources: semanticResult.citations,
 				aiMetadata,
 			};
-		} catch (error) {
-			logger.error('AI Orchestration failed', { error, groupId, userId });
-			emitEvent('ai:error', {
-				error: { code: error.code || 'AI_ORCHESTRATION_ERROR', message: error.message },
-				groupId,
-			});
-			throw error;
+		} catch (err) {
+			logger.error('Error during AI orchestration processing:', { error: err, groupId, userId });
+			emitEvent('ai:error', { message: err.message });
+			throw err;
 		}
 	}
 

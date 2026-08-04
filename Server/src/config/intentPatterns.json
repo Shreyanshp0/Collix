@@ -1,0 +1,159 @@
+{
+  "capabilities": {
+    "CODE_REVIEW": {
+      "risk": "CRITICAL",
+      "defaultMaxTokens": 2000,
+      "aliases": ["codeReview", "CODE_REVIEW", "code_review"],
+      "patterns": [
+        { "keyword": "code", "weight": 40 },
+        { "keyword": "implement", "weight": 35 },
+        { "keyword": "implementation", "weight": 45 },
+        { "keyword": "function", "weight": 45 },
+        { "keyword": "method", "weight": 40 },
+        { "keyword": "class", "weight": 40 },
+        { "keyword": "algorithm", "weight": 45 },
+        { "keyword": "program", "weight": 35 },
+        { "keyword": "script", "weight": 40 },
+        { "keyword": "component", "weight": 40 },
+        { "keyword": "endpoint", "weight": 40 },
+        { "keyword": "bug", "weight": 40 },
+        { "keyword": "debug", "weight": 50 },
+        { "keyword": "refactor", "weight": 50 },
+        { "keyword": "syntax", "weight": 40 },
+        { "keyword": "fix", "weight": 25 },
+        { "keyword": "compile", "weight": 45 },
+        { "keyword": "java", "weight": 50 },
+        { "keyword": "python", "weight": 50 },
+        { "keyword": "javascript", "weight": 50 },
+        { "keyword": "typescript", "weight": 50 },
+        { "keyword": "react", "weight": 50 },
+        { "keyword": "html", "weight": 40 },
+        { "keyword": "css", "weight": 40 },
+        { "keyword": "cpp", "weight": 50 },
+        { "keyword": "c++", "weight": 50 },
+        { "keyword": "sql", "weight": 45 },
+        { "keyword": "api", "weight": 25 }
+      ],
+      "regexes": [
+        "write\\s+(a|an|some|the)?\\s*(code|script|function|class|method|component|program)",
+        "how\\s+to\\s+(code|implement|build|fix|debug|refactor)",
+        "fix\\s+(my|this|the)?\\s*(bug|error|issue|code|function|component)",
+        "show\\s+(me|an)?\\s*(implementation|example\\s+code|script)",
+        "(create|generate|write)\\s+a\\s+(react|java|python|javascript|node|c\\+\\+|sql)\\s+(component|class|script|function)",
+        "(debug|refactor|optimize)\\s+this\\s+(code|function|class|method)"
+      ]
+    },
+    "ARCHITECTURE_REVIEW": {
+      "risk": "HIGH",
+      "defaultMaxTokens": 2000,
+      "aliases": ["architectureReview", "ARCHITECTURE_REVIEW", "architecture_review"],
+      "patterns": [
+        { "keyword": "architecture", "weight": 60 },
+        { "keyword": "system design", "weight": 60 },
+        { "keyword": "scalability", "weight": 50 },
+        { "keyword": "scalable", "weight": 45 },
+        { "keyword": "microservices", "weight": 50 },
+        { "keyword": "monolith", "weight": 45 },
+        { "keyword": "load balancer", "weight": 50 },
+        { "keyword": "database schema", "weight": 50 },
+        { "keyword": "infrastructure", "weight": 45 },
+        { "keyword": "high availability", "weight": 45 },
+        { "keyword": "bottleneck", "weight": 40 },
+        { "keyword": "serverless", "weight": 45 },
+        { "keyword": "topology", "weight": 50 },
+        { "keyword": "system blueprint", "weight": 55 }
+      ],
+      "regexes": [
+        "(review|design|evaluate)\\s+(the|this|a)?\\s*(architecture|system|infrastructure|topology)",
+        "design\\s+a\\s+(scalable|distributed|microservice|cloud)\\s+(backend|system|architecture)",
+        "how\\s+to\\s+scale\\s+(this|our|a)\\s+(system|database|application|backend)"
+      ]
+    },
+    "RESUME_REVIEW": {
+      "risk": "MEDIUM",
+      "defaultMaxTokens": 1800,
+      "aliases": ["resumeReview", "RESUME_REVIEW", "resume_review"],
+      "patterns": [
+        { "keyword": "resume", "weight": 60 },
+        { "keyword": "cv", "weight": 60 },
+        { "keyword": "curriculum vitae", "weight": 60 },
+        { "keyword": "cover letter", "weight": 50 },
+        { "keyword": "work experience", "weight": 40 },
+        { "keyword": "job application", "weight": 45 },
+        { "keyword": "linkedin profile", "weight": 45 },
+        { "keyword": "work history", "weight": 40 }
+      ],
+      "regexes": [
+        "(review|check|improve|rate|feedback\\s+on)\\s+(my|this|the)?\\s*(resume|cv|cover\\s+letter|profile)",
+        "how\\s+is\\s+my\\s+(resume|cv)",
+        "resume\\s+(tips|improvements|review|formatting)"
+      ]
+    },
+    "CAREER_GUIDANCE": {
+      "risk": "LOW",
+      "defaultMaxTokens": 1500,
+      "aliases": ["careerCoaching", "careerGuidance", "CAREER_GUIDANCE", "career_guidance"],
+      "patterns": [
+        { "keyword": "career", "weight": 60 },
+        { "keyword": "interview", "weight": 50 },
+        { "keyword": "job offer", "weight": 50 },
+        { "keyword": "salary", "weight": 45 },
+        { "keyword": "promotion", "weight": 40 },
+        { "keyword": "roadmap", "weight": 40 },
+        { "keyword": "certificate", "weight": 35 },
+        { "keyword": "certification", "weight": 35 },
+        { "keyword": "career advice", "weight": 60 },
+        { "keyword": "career path", "weight": 55 }
+      ],
+      "regexes": [
+        "career\\s+(advice|guidance|path|roadmap|transition)",
+        "(prepare|prep)\\s+for\\s+(an|a)?\\s*(interview|job\\s+interview)",
+        "how\\s+to\\s+(become|get\\s+promoted|negotiate\\s+salary)"
+      ]
+    },
+    "DOCUMENT_QA": {
+      "risk": "LOW",
+      "defaultMaxTokens": 2500,
+      "aliases": ["documentQA", "DOCUMENT_QA", "document_qa"],
+      "patterns": [
+        { "keyword": "document", "weight": 45 },
+        { "keyword": "pdf", "weight": 50 },
+        { "keyword": "file", "weight": 35 },
+        { "keyword": "chapter", "weight": 40 },
+        { "keyword": "page", "weight": 35 },
+        { "keyword": "summarize", "weight": 40 },
+        { "keyword": "uploaded", "weight": 40 },
+        { "keyword": "knowledge base", "weight": 45 },
+        { "keyword": "excerpt", "weight": 40 }
+      ],
+      "regexes": [
+        "what\\s+does\\s+the\\s+(document|pdf|file)\\s+say",
+        "summarize\\s+(this|the|uploaded)?\\s*(document|pdf|file|chapter)",
+        "in\\s+(this|the)\\s+(pdf|document|file)",
+        "what\\s+(is|are)\\s+in\\s+(this|the)\\s+(pdf|document|file)"
+      ]
+    },
+    "IDEA_BRAINSTORMING": {
+      "risk": "LOW",
+      "defaultMaxTokens": 1200,
+      "aliases": ["brainstorming", "IDEA_BRAINSTORMING", "idea_brainstorming"],
+      "patterns": [
+        { "keyword": "brainstorm", "weight": 60 },
+        { "keyword": "idea", "weight": 40 },
+        { "keyword": "ideas", "weight": 45 },
+        { "keyword": "concept", "weight": 35 },
+        { "keyword": "startup", "weight": 45 },
+        { "keyword": "project ideas", "weight": 55 },
+        { "keyword": "feature ideas", "weight": 55 },
+        { "keyword": "innovate", "weight": 40 },
+        { "keyword": "suggestions", "weight": 35 }
+      ],
+      "regexes": [
+        "brainstorm\\s+(some|new|startup|project|feature)?\\s*ideas",
+        "give\\s+me\\s+(some|project|startup)?\\s*ideas",
+        "suggest\\s+(features|ideas|concepts|topics)"
+      ]
+    }
+  },
+  "scoreThreshold": 40
+}

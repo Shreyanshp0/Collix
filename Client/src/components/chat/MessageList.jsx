@@ -8,6 +8,7 @@ import ReadReceipt from './ReadReceipt.jsx';
 const BOTTOM_THRESHOLD = 100; // px threshold for smart scroll
 
 import AIMessage from './AIMessage.jsx';
+import CapabilityDeniedCard from './CapabilityDeniedCard.jsx';
 
 function formatTime(isoString) {
   if (!isoString) return '';
@@ -218,6 +219,15 @@ function MessageList({
                   item.author?.type === 'ai' ||
                   item.author?.name === 'Collix AI';
                 const isOwnMessage = Boolean(currentUserId && authorId === currentUserId);
+
+                if (item.type === 'capability_denied' || item.code === 'CAPABILITY_DENIED') {
+                  return (
+                    <CapabilityDeniedCard
+                      key={item.id || item._id}
+                      data={item.capabilityDeniedData || item}
+                    />
+                  );
+                }
 
                 if (isAI) {
                   return (

@@ -101,6 +101,18 @@ function normalizeError(error) {
 }
 
 export default function errorMiddleware(err, req, res, next) {
+	if (err?.code === 'CAPABILITY_DENIED' || err?.name === 'WorkspacePolicyViolation') {
+		return res.status(403).json({
+			success: false,
+			code: 'CAPABILITY_DENIED',
+			message: err.message || 'This workspace does not permit this type of AI request.',
+			requiredCapability: err.requiredCapability || 'CODE_REVIEW',
+			enabledCapabilities: err.enabledCapabilities || [],
+			blockedCapabilities: err.blockedCapabilities || [],
+			risk: err.risk || 'MEDIUM',
+		});
+	}
+
 	const normalized = normalizeError(err);
 
 	// Log complete error stack trace to server console for debugging without exposing to client

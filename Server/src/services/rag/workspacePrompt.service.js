@@ -42,13 +42,25 @@ export function compileBehaviorToPrompt(behavior = {}, capabilities = {}, metada
 	}
 
 	const activeCapabilities = Object.entries(capabilities || {})
-		.filter(([, enabled]) => Boolean(enabled))
+		.filter(([, enabled]) => (typeof enabled === 'boolean' ? enabled : enabled?.enabled))
+		.map(([cap]) => cap);
+
+	const forbiddenCapabilities = Object.entries(capabilities || {})
+		.filter(([, enabled]) => !(typeof enabled === 'boolean' ? enabled : enabled?.enabled))
 		.map(([cap]) => cap);
 
 	if (activeCapabilities.length > 0) {
 		lines.push('\n## Allowed Capabilities');
 		activeCapabilities.forEach((cap) => lines.push(`- Authorized: ${cap}`));
 	}
+
+	if (forbiddenCapabilities.length > 0) {
+		lines.push('\n## Forbidden Capabilities');
+		forbiddenCapabilities.forEach((cap) => lines.push(`- Forbidden: ${cap}`));
+	}
+
+	lines.push('\n## Workspace Policy & Violation Handling');
+	lines.push('If a user requests any forbidden capability, politely refuse. Do NOT attempt partial compliance.');
 
 	if (metadata && Object.keys(metadata).length > 0) {
 		lines.push('\n## Workspace Context');

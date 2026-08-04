@@ -39,6 +39,22 @@ export class AuthorizationError extends AppError {
 	}
 }
 
+export class WorkspacePolicyViolation extends AppError {
+	constructor({
+		requiredCapability,
+		enabledCapabilities = [],
+		blockedCapabilities = [],
+		risk = 'MEDIUM',
+		message = 'This workspace does not permit this type of AI request.',
+	} = {}) {
+		super(message, { statusCode: 403, code: 'CAPABILITY_DENIED' });
+		this.requiredCapability = requiredCapability;
+		this.enabledCapabilities = enabledCapabilities;
+		this.blockedCapabilities = blockedCapabilities;
+		this.risk = risk;
+	}
+}
+
 export class NotFoundError extends AppError {
 	constructor(resource = 'Resource') {
 		super(`${resource} not found`, { statusCode: 404, code: 'NOT_FOUND' });
