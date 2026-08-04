@@ -115,6 +115,24 @@ Group data isolation is enforced at two levels:
 - Note: `faiss-node` is a native binary — use a full (non-slim) Node
   base image unless build tools are confirmed present
 
+### Production URL secrets
+
+Configure these GitHub Actions secrets with the public EC2 origin (replace
+`54.xx.xx.xx` with the real host):
+
+```text
+CLIENT_URL=http://54.xx.xx.xx
+VITE_API_URL=http://54.xx.xx.xx/api/v1
+VITE_SOCKET_URL=http://54.xx.xx.xx
+```
+
+`CLIENT_URL` is the browser origin allowed by backend CORS, and
+`VITE_SOCKET_URL` is the Socket.IO server origin. Neither may include
+`/api/v1`: Socket.IO interprets a path in its connection URL as a namespace,
+so `http://54.xx.xx.xx/api/v1` requests the `/api/v1` namespace rather than
+the default `/` namespace. Only `VITE_API_URL` includes `/api/v1`, because it
+is used as the REST API base URL.
+
 ---
 
 ## Development Timeline (v1)
