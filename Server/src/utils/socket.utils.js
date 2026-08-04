@@ -22,6 +22,11 @@ export const SOCKET_EVENTS = Object.freeze({
 	AI_DELTA: 'ai:delta',
 	AI_COMPLETE: 'ai:complete',
 	AI_ERROR: 'ai:error',
+
+	// Document Lifecycle Events
+	DOCUMENT_CREATED: 'document:created',
+	DOCUMENT_UPDATED: 'document:updated',
+	DOCUMENT_DELETED: 'document:deleted',
 });
 
 function safeError(error) {

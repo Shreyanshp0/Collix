@@ -10,6 +10,23 @@ import queueProvider from './providers/queue.provider.js';
 import { DOCUMENT_PROCESSING_STATUS } from '../../constants/documentStatus.js';
 import defaultLogger, { assertLogger } from '../../utils/logger.js';
 import eventBus from '../eventBus.service.js';
+import { getIO } from '../../socket/index.js';
+import { SOCKET_EVENTS } from '../../utils/socket.utils.js';
+
+function broadcastDocumentStatus({ documentId, groupId, status, metadata = {}, error = null }) {
+	const io = getIO();
+	if (io && groupId) {
+		io.to(`group:${groupId}`).emit(SOCKET_EVENTS.DOCUMENT_UPDATED, {
+			id: documentId.toString(),
+			documentId: documentId.toString(),
+			groupId: groupId.toString(),
+			status,
+			processingStatus: status,
+			metadata,
+			error,
+		});
+	}
+}
 
 export function createDocumentProcessor({
 	loader = documentLoader,
@@ -66,6 +83,11 @@ export function createDocumentProcessor({
 		// 3. Update status to 'processing'
 		document.processingStatus = DOCUMENT_PROCESSING_STATUS.PROCESSING;
 		await document.save();
+		broadcastDocumentStatus({
+			documentId: document._id,
+			groupId: document.group,
+			status: DOCUMENT_PROCESSING_STATUS.PROCESSING,
+		});
 
 		try {
 			// 4. Load & Extract Text
@@ -145,6 +167,13 @@ export function createDocumentProcessor({
 				status: document.processingStatus,
 			});
 
+			broadcastDocumentStatus({
+				documentId: document._id,
+				groupId: document.group,
+				status: DOCUMENT_PROCESSING_STATUS.READY,
+				metadata: document.metadata,
+			});
+
 			eventBus.publish('DOCUMENT_READY', {
 				documentId: document._id.toString(),
 				groupId: document.group?.toString(),
@@ -162,6 +191,14 @@ export function createDocumentProcessor({
 				processingError: error.message || 'Knowledge processing failed',
 			};
 			await document.save();
+
+			broadcastDocumentStatus({
+				documentId: document._id,
+				groupId: document.group,
+				status: DOCUMENT_PROCESSING_STATUS.FAILED,
+				metadata: document.metadata,
+				error: error.message,
+			});
 
 			eventBus.publish('DOCUMENT_FAILED', {
 				documentId: document._id.toString(),
@@ -181,9 +218,18 @@ export function createDocumentProcessor({
 		return queue.enqueue({
 			name: `process-document-${documentId}`,
 			run: async () => {
-				await Document.findByIdAndUpdate(documentId, {
-					processingStatus: DOCUMENT_PROCESSING_STATUS.QUEUED,
-				});
+				const updatedDoc = await Document.findByIdAndUpdate(
+					documentId,
+					{ processingStatus: DOCUMENT_PROCESSING_STATUS.QUEUED },
+					{ new: true }
+				);
+				if (updatedDoc) {
+					broadcastDocumentStatus({
+						documentId: updatedDoc._id,
+						groupId: updatedDoc.group,
+						status: DOCUMENT_PROCESSING_STATUS.QUEUED,
+					});
+				}
 				return processDocument(documentId);
 			},
 		});

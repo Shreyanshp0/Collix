@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, useEffect, useCallback } from 'react
 import toast from 'react-hot-toast';
 import useSocket from '../../hooks/useSocket.jsx';
 
-function AskAIBox({ onAddDocuments, onOpenDocuments, onAskAi, activeGroupId }) {
+function AskAIBox({ onUploadDocuments, onAddDocuments, onOpenDocuments, onAskAi, activeGroupId }) {
   const { socket, isConnected } = useSocket();
   const [question, setQuestion] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -65,33 +65,15 @@ function AskAIBox({ onAddDocuments, onOpenDocuments, onAskAi, activeGroupId }) {
     textareaRef.current?.focus();
   };
 
-  const uploadFiles = (fileList) => {
+  const uploadFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
-    files.forEach((file) => {
-      const id = `${file.name}-${file.size}-${Date.now()}`;
-      setAttachedFiles((c) => [{ id, name: file.name, size: file.size }, ...c]);
-      setUploadProgressMap((m) => ({ ...m, [id]: 0 }));
-
-      window.setTimeout(() => setUploadProgressMap((m) => ({ ...m, [id]: 35 })), 120);
-      window.setTimeout(() => setUploadProgressMap((m) => ({ ...m, [id]: 72 })), 260);
-      window.setTimeout(() => {
-        setUploadProgressMap((m) => ({ ...m, [id]: 100 }));
-        onAddDocuments?.([
-          {
-            id: `${file.name}-${file.size}`,
-            name: file.name,
-            size: `${Math.max(1, Math.round(file.size / 1024))} KB`,
-            uploadedBy: 'You',
-            uploadedAt: new Date().toISOString(),
-            status: 'ready',
-            groupId: activeGroupId,
-          },
-        ]);
-        toast.success(`${file.name} attached.`);
-      }, 420);
-    });
+    if (onUploadDocuments) {
+      await onUploadDocuments(files);
+    } else if (onAddDocuments) {
+      await onAddDocuments(files);
+    }
   };
 
   useLayoutEffect(() => {

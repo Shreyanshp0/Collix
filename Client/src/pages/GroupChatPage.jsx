@@ -3,11 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import aiApi from '../api/ai.api.js';
-import documentsApi from '../api/documents.api.js';
 import groupsApi from '../api/groups.api.js';
 import useAuth from '../hooks/useAuth.jsx';
 import useMessages from '../hooks/useMessages.jsx';
 import useSocket from '../hooks/useSocket.jsx';
+import useDocuments from '../hooks/useDocuments.js';
 import AskAIBox from '../components/ai/AskAIBox.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import TypingIndicator from '../components/chat/TypingIndicator.jsx';
@@ -24,9 +24,6 @@ function GroupChatPage() {
   const { socket, isConnected } = useSocket();
   const [group, setGroup] = useState(null);
   const [members, setMembers] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [documentsLoading, setDocumentsLoading] = useState(true);
-  const [documentsError, setDocumentsError] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);
   const safetyTimeoutRef = useRef(null);
 
@@ -35,6 +32,17 @@ function GroupChatPage() {
   const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+
+  const {
+    documents,
+    loading: documentsLoading,
+    error: documentsError,
+    uploadProgressMap,
+    ariaAnnouncement,
+    uploadDocuments,
+    deleteDocument,
+    refetchDocuments,
+  } = useDocuments(groupId);
 
   const handleAskAi = async (questionText) => {
     if (!groupId || !questionText) return;
@@ -65,54 +73,6 @@ function GroupChatPage() {
     updateMessage,
     retry: retryMessages,
   } = useMessages(groupId);
-
-  // Fetch live documents for the active group
-  const fetchGroupDocuments = useCallback(async () => {
-    if (!groupId) return;
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    try {
-      const docs = await documentsApi.list(groupId);
-      setDocuments(Array.isArray(docs) ? docs : []);
-    } catch (err) {
-      console.error('Failed to fetch group documents:', err);
-      const message = err.response?.data?.message || err.message || 'Failed to load documents';
-      setDocumentsError(message);
-    } finally {
-      setDocumentsLoading(false);
-    }
-  }, [groupId]);
-
-  useEffect(() => {
-    fetchGroupDocuments();
-  }, [fetchGroupDocuments]);
-
-  // Optimistically append uploaded documents without refetching GET
-  const handleAddDocuments = (newDocuments) => {
-    if (!Array.isArray(newDocuments) || newDocuments.length === 0) return;
-    setDocuments((current) => {
-      const existingIds = new Set(current.map((d) => d.id));
-      const filteredNew = newDocuments.filter((d) => !existingIds.has(d.id));
-      return [...filteredNew, ...current];
-    });
-  };
-
-  // Optimistically delete document with rollback on API failure
-  const handleDeleteDocument = async (documentId) => {
-    if (!documentId) return;
-    const previousDocs = [...documents];
-    setDocuments((current) => current.filter((d) => d.id !== documentId));
-
-    try {
-      await documentsApi.remove(documentId);
-      toast.success('Document deleted successfully');
-    } catch (err) {
-      console.error('Failed to delete document:', err);
-      setDocuments(previousDocs); // Rollback on error
-      const message = err.response?.data?.message || err.message || 'Failed to delete document';
-      toast.error(message);
-    }
-  };
 
   // Clear typing users on room change or disconnect
   useEffect(() => {
@@ -325,7 +285,7 @@ function GroupChatPage() {
               loading={loading}
               documents={documents}
               members={members}
-              onDeleteDocument={handleDeleteDocument}
+              onOpenDocuments={() => setIsDocumentsModalOpen(true)}
             />
           </aside>
         )}
@@ -378,7 +338,7 @@ function GroupChatPage() {
 
             <div className="shrink-0 px-3 pb-2">
               <AskAIBox
-                onAddDocuments={handleAddDocuments}
+                onUploadDocuments={uploadDocuments}
                 onOpenDocuments={() => setIsDocumentsModalOpen(true)}
                 onAskAi={handleAskAi}
                 activeGroupId={groupId}
@@ -409,6 +369,10 @@ function GroupChatPage() {
         </aside>
       </div>
 
+      <div className="sr-only" role="status" aria-live="polite">
+        {ariaAnnouncement}
+      </div>
+
       {isDocumentsModalOpen && (
         <Modal
           isOpen={isDocumentsModalOpen}
@@ -419,13 +383,15 @@ function GroupChatPage() {
           subtitle="Upload and view team PDF / DOCX files"
         >
           <div className="space-y-4">
-            <DocumentUpload groupId={groupId} onAddDocuments={handleAddDocuments} />
+            <DocumentUpload groupId={groupId} onUploadDocuments={uploadDocuments} />
             <DocumentList
               documents={documents}
               loading={documentsLoading}
               error={documentsError}
-              onDeleteDocument={handleDeleteDocument}
-              onRetry={fetchGroupDocuments}
+              uploadProgressMap={uploadProgressMap}
+              onDeleteDocument={deleteDocument}
+              onRetry={refetchDocuments}
+              enableControls
             />
           </div>
         </Modal>

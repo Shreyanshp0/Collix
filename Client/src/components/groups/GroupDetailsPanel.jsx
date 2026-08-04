@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { Bot, LogOut } from 'lucide-react';
+import {
+  Bot,
+  Eye,
+  FolderOpen,
+  LogOut,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Modal from '../shared/Modal.jsx';
-import DocumentList from '../documents/DocumentList.jsx';
 import AISettingsModal from './AISettingsModal.jsx';
 import groupsApi from '../../api/groups.api.js';
+import {
+  formatDocumentSize,
+  getDocumentIcon,
+  getDocumentStatusPresentation,
+} from '../../utils/documentStatus.js';
 
 export default function GroupDetailsPanel({
   activeGroupId,
@@ -13,9 +21,8 @@ export default function GroupDetailsPanel({
   onCollapse,
   documents = [],
   members = [],
-  onDeleteDocument,
+  onOpenDocuments,
 }) {
-  const [showDocs, setShowDocs] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const navigate = useNavigate();
@@ -23,7 +30,7 @@ export default function GroupDetailsPanel({
   const groupName = group?.name || activeGroupId?.replace(/-/g, ' ') || 'Group';
   const description = group?.description || 'No description provided.';
   const memberCount = (members && members.length) || group?.memberCount || 0;
-  const docCount = documents ? documents.filter((d) => d.groupId === activeGroupId).length : 0;
+  const docCount = documents.length;
   const visibility = group?.visibility === 'public' ? 'PUBLIC' : 'PRIVATE';
   const aiDomain = group?.aiConfiguration?.workspaceDomain || 'general';
   const aiPersona = group?.aiConfiguration?.persona || 'mentor';
@@ -36,6 +43,18 @@ export default function GroupDetailsPanel({
       return iso || 'Unknown';
     }
   };
+
+  const formatDocumentDate = (iso) => {
+    if (!iso) return 'Recently';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'Recently';
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  const getUploaderName = (document) =>
+    document.uploadedBy?.name ||
+    document.uploadedBy?.username ||
+    (typeof document.uploadedBy === 'string' ? document.uploadedBy : 'A group member');
 
   const handleLeaveGroup = async () => {
     if (!activeGroupId) return;
@@ -90,6 +109,81 @@ export default function GroupDetailsPanel({
             </div>
           </div>
 
+          <section className="border-2 border-border bg-[#0f131b] p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.12em] text-groupBlue">
+                <FolderOpen className="h-4 w-4" strokeWidth={2.25} />
+                <span>Shared Documents</span>
+              </div>
+              <span className="border border-groupBlue/70 bg-groupBlue/10 px-1.5 py-0.5 text-[10px] font-black text-groupBlue">
+                {docCount}
+              </span>
+            </div>
+
+            {docCount === 0 ? (
+              <button
+                type="button"
+                onClick={onOpenDocuments}
+                className="mt-3 flex w-full flex-col items-start gap-2 border border-dashed border-border px-3 py-3 text-left transition-colors hover:border-groupBlue hover:bg-groupBlue/5"
+              >
+                <FolderOpen className="h-5 w-5 text-groupBlue" strokeWidth={2} />
+                <span className="text-xs font-bold text-primaryText">No documents yet</span>
+                <span className="text-[10px] leading-4 text-secondaryText">Upload your first document to build the group&apos;s AI knowledge base.</span>
+                <span className="border border-groupBlue px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-groupBlue">Upload document</span>
+              </button>
+            ) : (
+              <div className="scroll-panel mt-2 max-h-[286px] space-y-1 overflow-y-auto pr-1">
+                {documents.slice(0, 6).map((document) => {
+                  const DocumentIcon = getDocumentIcon(document);
+                  const indexing = getDocumentStatusPresentation(document.processingStatus || document.status);
+                  const fileUrl = document.storage?.url || document.url;
+                  const StatusIcon = indexing.Icon;
+
+                  return (
+                    <div key={document.id} className="group flex items-start gap-2 border border-transparent px-1.5 py-1.5 transition-all hover:border-groupBlue/60 hover:bg-groupBlue/5">
+                      <button
+                        type="button"
+                        onClick={onOpenDocuments}
+                        className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                        title={`Open ${document.name || 'document'} details`}
+                      >
+                        <DocumentIcon className="mt-0.5 h-4 w-4 shrink-0 text-groupBlue" strokeWidth={2} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-bold text-primaryText">{document.originalName || document.name || 'Untitled document'}</span>
+                          <span className="block truncate text-[10px] text-secondaryText">{formatDocumentSize(document.size)} • {formatDocumentDate(document.uploadedAt)} • {getUploaderName(document)}</span>
+                          <span className={`mt-0.5 flex items-center gap-1 text-[10px] font-bold ${indexing.className}`}>
+                            <StatusIcon className={`h-3 w-3 ${indexing.spinning ? 'animate-spin' : ''}`} strokeWidth={2} />
+                            {indexing.label}
+                          </span>
+                        </span>
+                      </button>
+                      {fileUrl && (
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-0.5 hidden h-7 w-7 items-center justify-center border border-border bg-background text-secondaryText transition-colors hover:border-groupBlue hover:text-groupBlue group-hover:flex focus:flex"
+                          title="Preview document"
+                          aria-label={`Preview ${document.name || 'document'}`}
+                        >
+                          <Eye className="h-4 w-4" strokeWidth={2} />
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onOpenDocuments}
+              className="mt-3 w-full border-t border-border/60 pt-2 text-left text-[10px] font-black uppercase tracking-[0.14em] text-groupBlue transition-colors hover:text-primaryText"
+            >
+              View All →
+            </button>
+          </section>
+
           {/* AI Workspace Card */}
           <div className="rounded-sm border-2 border-border bg-[#0f131b] p-3 space-y-2">
             <div className="flex items-center justify-between">
@@ -124,12 +218,6 @@ export default function GroupDetailsPanel({
           </div>
         </div>
       </div>
-
-      {showDocs && (
-        <Modal isOpen={showDocs} onClose={() => setShowDocs(false)} size="md" sectionLabel="TRACKED PDFs" title="Tracked PDFs">
-          <DocumentList documents={documents} onDeleteDocument={onDeleteDocument} />
-        </Modal>
-      )}
 
       {showAiSettings && (
         <AISettingsModal

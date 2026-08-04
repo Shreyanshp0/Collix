@@ -1,12 +1,10 @@
-import { FileUp, Upload } from 'lucide-react';
+import { FileUp, LoaderCircle, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import documentsApi from '../../api/documents.api.js';
 
-function DocumentUpload({ groupId, onAddDocuments }) {
+function DocumentUpload({ groupId, onUploadDocuments, onAddDocuments }) {
   const fileInputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   const handleFileChange = async (event) => {
     const files = event.target.files;
@@ -18,25 +16,14 @@ function DocumentUpload({ groupId, onAddDocuments }) {
     }
 
     setUploading(true);
-    setProgress(0);
-
     try {
-      const uploadedDocs = await documentsApi.upload({
-        groupId,
-        files,
-        onProgress: (percent) => setProgress(percent),
-      });
-
-      const docsList = Array.isArray(uploadedDocs) ? uploadedDocs : [];
-      toast.success(`Successfully uploaded ${files.length} document${files.length > 1 ? 's' : ''}!`);
-      onAddDocuments?.(docsList);
-    } catch (error) {
-      console.error('Document upload failed:', error);
-      const message = error.response?.data?.message || error.message || 'Failed to upload document';
-      toast.error(message);
+      if (onUploadDocuments) {
+        await onUploadDocuments(files);
+      } else if (onAddDocuments) {
+        await onAddDocuments(files);
+      }
     } finally {
       setUploading(false);
-      setProgress(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -65,7 +52,7 @@ function DocumentUpload({ groupId, onAddDocuments }) {
           className="brutal-button flex items-center gap-2 text-xs"
         >
           <FileUp className="h-4 w-4" strokeWidth={2.25} />
-          <span>{uploading ? `Uploading... ${progress}%` : 'Upload Files'}</span>
+          <span>{uploading ? 'Processing...' : 'Upload Files'}</span>
         </button>
 
         <input
@@ -81,14 +68,10 @@ function DocumentUpload({ groupId, onAddDocuments }) {
       {uploading && (
         <div className="mt-3 space-y-1">
           <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.14em] text-secondaryText">
-            <span>Uploading documents to cloud storage...</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-sm border border-border bg-background">
-            <div
-              className="h-full bg-groupBlue transition-all duration-200"
-              style={{ width: `${progress}%` }}
-            />
+            <span className="flex items-center gap-1.5">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin text-groupBlue" strokeWidth={2} />
+              Processing selected files...
+            </span>
           </div>
         </div>
       )}

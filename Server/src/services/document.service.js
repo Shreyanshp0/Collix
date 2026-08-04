@@ -10,6 +10,8 @@ import { toDocumentDto } from '../mappers/document.mapper.js';
 import { GROUP_ROLES } from '../constants/roles.js';
 import defaultLogger, { assertLogger } from '../utils/logger.js';
 import eventBus from './eventBus.service.js';
+import { getIO } from '../socket/index.js';
+import { SOCKET_EVENTS } from '../utils/socket.utils.js';
 
 function getId(value) {
 	return value?.toString?.() || value?._id?.toString?.() || value;
@@ -149,7 +151,14 @@ export function createDocumentService({ provider = storageProvider, logger = def
 			}
 		}
 
-		return createdDocs.map((document) => toDocumentDto(document));
+		const dtos = createdDocs.map((document) => toDocumentDto(document));
+		const io = getIO();
+		if (io) {
+			dtos.forEach((doc) => {
+				io.to(`group:${groupId.toString()}`).emit(SOCKET_EVENTS.DOCUMENT_CREATED, { document: doc });
+			});
+		}
+		return dtos;
 	}
 
 	async function listDocuments({ userId, groupId }) {
@@ -195,6 +204,13 @@ export function createDocumentService({ provider = storageProvider, logger = def
 		}
 
 		await Document.deleteOne({ _id: documentId });
+		const io = getIO();
+		if (io && document.group) {
+			io.to(`group:${document.group.toString()}`).emit(SOCKET_EVENTS.DOCUMENT_DELETED, {
+				documentId: documentId.toString(),
+				groupId: document.group.toString(),
+			});
+		}
 		return { success: true };
 	}
 

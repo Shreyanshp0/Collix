@@ -1,5 +1,5 @@
 import { AlertCircle, RefreshCw, Smile, ThumbsUp } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import useAuth from '../../hooks/useAuth.jsx';
 import useSocket from '../../hooks/useSocket.jsx';
 import LoadingSpinner from '../common/LoadingSpinner.jsx';
@@ -161,16 +161,6 @@ function MessageList({
     };
   }, [messages, socket, isConnected, activeGroupKey, currentUser]);
 
-  const docItems = useMemo(
-    () =>
-      documents.map((document) => ({
-        id: document.id,
-        type: 'document',
-        document,
-      })),
-    [documents],
-  );
-
   const currentUserId = currentUser?.id || currentUser?._id;
 
   return (
@@ -210,7 +200,7 @@ function MessageList({
                 Retry
               </button>
             </div>
-          ) : messages.length === 0 && docItems.length === 0 ? (
+          ) : messages.length === 0 ? (
             /* Empty Conversation State */
             <div className="border-2 border-border bg-[#0f131b] px-4 py-6 text-center text-sm leading-6 text-secondaryText">
               No messages yet in this group. Start the conversation!
@@ -279,39 +269,6 @@ function MessageList({
                 );
               })}
 
-              {/* Document Attachments */}
-              {docItems.map((docItem) => {
-                const docUploaderName =
-                  typeof docItem.document.uploadedBy === 'object'
-                    ? docItem.document.uploadedBy?.name ||
-                      docItem.document.uploadedBy?.username ||
-                      docItem.document.uploadedBy?.id ||
-                      'User'
-                    : docItem.document.uploadedBy || 'User';
-
-                return (
-                  <div
-                    key={docItem.id}
-                    className="ml-3 border-2 border-border bg-[#11161f] p-4 shadow-[4px_4px_0px_0px_#3B82F6]"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-sm font-black uppercase tracking-[0.12em] text-groupBlue">
-                        PDF Attached
-                      </p>
-                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-secondaryText">
-                        {formatTime(docItem.document.uploadedAt)}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-bold text-primaryText">{docItem.document.name}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.16em] text-secondaryText">
-                      <span>Uploaded By: {docUploaderName}</span>
-                      <span className="border border-border px-2 py-1 text-groupBlue">
-                        {docItem.document.status}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
             </>
           )}
         </div>
