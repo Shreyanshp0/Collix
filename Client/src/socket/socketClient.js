@@ -31,7 +31,6 @@ export function connectSocket(token) {
 
   socket = io(socketUrl, {
     auth: { token },
-    transports: ['websocket', 'polling'],
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 10,
