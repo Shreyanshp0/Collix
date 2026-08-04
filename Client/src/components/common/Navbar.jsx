@@ -15,11 +15,11 @@ function Navbar() {
         <div className="flex items-center gap-3">
           <Link to={isAuthenticated ? '/groups' : '/login'} className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md border-2 border-border bg-aiPurple text-xl font-black uppercase text-background shadow-ai">
-              N
+              C
             </div>
             <div>
               <p className="text-[2rem] font-black uppercase leading-none tracking-[0.12em] text-primaryText">
-                Nexus <span className="text-aiPurple">AI</span>
+                Collix <span className="text-aiPurple">AI</span>
               </p>
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-secondaryText">
                 Group-grounded collaboration

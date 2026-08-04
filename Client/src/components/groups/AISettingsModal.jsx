@@ -57,7 +57,7 @@ export default function AISettingsModal({ isOpen, onClose, groupId }) {
       onClose={onClose}
       size="lg"
       sectionLabel="WORKSPACE AI SETTINGS"
-      title="Nexus AI Workspace Configuration"
+      title="Collix AI Workspace Configuration"
       subtitle="Customize persona, instructions, and preview compiled system prompt"
     >
       {loading ? (

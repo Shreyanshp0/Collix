@@ -30,7 +30,7 @@ export function toMessageDto(message, { author } = {}) {
 	if (message.type === 'ai') {
 		authorDto = {
 			id: 'ai',
-			name: message.aiMetadata?.displayName || author?.name || 'Nexus AI',
+			name: message.aiMetadata?.displayName || author?.name || 'Collix AI',
 			type: 'ai',
 			provider: message.aiMetadata?.provider || 'groq',
 			model: message.aiMetadata?.model || 'llama-3.1-8b-instant',

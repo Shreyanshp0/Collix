@@ -53,7 +53,7 @@ function AIMessage({ messageItem, documents = [] }) {
           </div>
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <p className="text-sm font-black uppercase tracking-[0.12em] text-aiPurple truncate">
-              {messageItem.author?.name || meta.displayName || 'Nexus AI'}
+              {messageItem.author?.name || meta.displayName || 'Collix AI'}
             </p>
             <span className="rounded-sm border border-aiPurple px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-aiPurple shrink-0">
               RAG Grounded

@@ -331,7 +331,7 @@ function GroupChatPage() {
               <div className="shrink-0 px-3 pb-1">
                 <div className="flex items-center gap-2 rounded-sm border border-aiPurple/50 bg-[#12101b] px-3 py-1.5 text-xs text-aiPurple font-bold">
                   <div className="h-3 w-3 animate-spin rounded-full border-2 border-aiPurple border-t-transparent" />
-                  <span>🤖 Nexus AI is analyzing knowledge base & writing answer...</span>
+                  <span>🤖 Collix AI is analyzing knowledge base & writing answer...</span>
                 </div>
               </div>
             )}

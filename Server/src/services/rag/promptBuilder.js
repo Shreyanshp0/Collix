@@ -11,7 +11,7 @@ export function createPromptBuilder({ promptVersion = PROMPT_VERSION } = {}) {
 		}
 		return recentMessages
 			.map((msg) => {
-				const senderName = msg.sender?.name || msg.sender?.username || (msg.type === 'ai' ? 'Nexus AI' : 'User');
+				const senderName = msg.sender?.name || msg.sender?.username || (msg.type === 'ai' ? 'Collix AI' : 'User');
 				const content = msg.message || '';
 				const time = msg.createdAt ? new Date(msg.createdAt).toISOString() : '';
 				return `[${time}] ${senderName}: ${content}`;

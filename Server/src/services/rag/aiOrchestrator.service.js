@@ -143,7 +143,7 @@ export function createAiOrchestrator({
 			const aiMetadata = {
 				provider: llmResponse.provider || options.provider || AI_CONFIG.provider,
 				model: llmResponse.model || options.model || AI_CONFIG.model,
-				displayName: options.assistantName || AI_CONFIG.identity.displayName || 'Nexus AI',
+				displayName: options.assistantName || AI_CONFIG.identity.displayName || 'Collix AI',
 				promptVersion,
 				confidence,
 				citations: semanticResult.citations,
@@ -164,10 +164,10 @@ export function createAiOrchestrator({
 
 			const messageDto = toMessageDto(savedMessage, {
 				author: {
-					id: 'nexus_ai',
-					_id: 'nexus_ai',
-					name: 'Nexus AI',
-					username: 'nexus_ai',
+					id: 'collix_ai',
+					_id: 'collix_ai',
+					name: 'Collix AI',
+					username: 'collix_ai',
 					type: 'ai',
 					status: 'online',
 				},

@@ -216,7 +216,6 @@ function MessageList({
                   item.meta?.type === 'ai' ||
                   item.meta?.ai ||
                   item.author?.type === 'ai' ||
-                  item.author?.name === 'Nexus AI' ||
                   item.author?.name === 'Collix AI';
                 const isOwnMessage = Boolean(currentUserId && authorId === currentUserId);
 

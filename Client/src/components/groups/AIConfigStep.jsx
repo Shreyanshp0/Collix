@@ -91,7 +91,7 @@ export default function AIConfigStep({ value, onChange, disabled = false, defaul
           <Bot className="h-4 w-4 text-aiPurple" strokeWidth={2.25} />
           <div>
             <p className="text-xs font-black uppercase tracking-[0.12em] text-primaryText">
-              Nexus AI Workspace Persona & Rules
+              Collix AI Workspace Persona & Rules
             </p>
             <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-secondaryText">
               {config.workspaceDomain} • {config.persona}
